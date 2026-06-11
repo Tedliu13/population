@@ -102,6 +102,7 @@ function setupControls() {
   });
   els.mapMetricSelect.addEventListener("change", () => {
     state.mapMetric = els.mapMetricSelect.value;
+    syncYearOptions();
     updateAll();
   });
   els.sampleWindowSelect.addEventListener("change", () => {
@@ -163,7 +164,9 @@ function syncScenarioOptions() {
 
 function syncYearOptions() {
   const years = getScenarioData().years;
-  if (!years.includes(state.year)) {
+  if (state.mapMetric === "changeFrom2025") {
+    state.year = years[years.length - 1];
+  } else if (!years.includes(state.year)) {
     state.year = years[0];
   }
   els.yearSelect.innerHTML = "";
