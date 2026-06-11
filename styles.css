@@ -26,7 +26,7 @@ body {
 .app-shell {
   max-width: 1800px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 14px;
 }
 
 .topbar,
@@ -39,20 +39,20 @@ body {
   box-shadow: var(--shadow);
 }
 
-.topbar {
+.side-header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
-  padding: 20px 24px;
+  padding: 0 0 4px 0;
 }
 
-.topbar h1,
+.side-header h1,
 .panel-header h2 {
   margin: 0;
 }
 
-.topbar p,
+.side-header p,
 .panel-header p,
 .town-summary,
 .legend,
@@ -90,39 +90,38 @@ button:disabled {
 }
 
 .controls {
-  margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(130px, 1fr));
-  gap: 12px;
-  padding: 16px;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px 10px;
+  padding: 12px;
 }
 
 .controls label {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .controls select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #fff;
 }
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(780px, 1.15fr) minmax(460px, 0.85fr);
   gap: 16px;
-  margin-top: 16px;
-  min-height: calc(100vh - 220px);
+  height: calc(100vh - 28px);
 }
 
 .map-panel,
 .chart-panel {
   position: relative;
-  padding: 16px;
-  min-height: 760px;
+  padding: 14px;
+  min-height: 0;
+  height: 100%;
 }
 
 .panel-header {
@@ -131,6 +130,30 @@ button:disabled {
   gap: 12px;
   align-items: flex-start;
   margin-bottom: 10px;
+}
+
+.chart-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.side-controls {
+  margin: 6px 0 12px 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.side-controls .controls,
+.side-controls.controls {
+  gap: 8px;
+}
+
+.chart-header {
+  margin-top: 0;
+  margin-bottom: 8px;
 }
 
 .legend {
@@ -162,8 +185,8 @@ button:disabled {
 .map-container,
 .chart-wrapper {
   position: relative;
-  height: calc(100% - 76px);
-  min-height: 640px;
+  height: 100%;
+  min-height: 0;
   border: 1px solid #e0d7c7;
   border-radius: 16px;
   background: linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%);
@@ -229,11 +252,43 @@ button:disabled {
 
 .chart-wrapper {
   padding: 8px;
+  min-height: 300px;
+  height: clamp(300px, 44vh, 430px);
+  flex: 0 0 auto;
 }
 
 .town-summary {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 14px;
+}
+
+.map-panel .panel-header {
+  margin-bottom: 8px;
+}
+
+.map-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.chart-panel .panel-header h2,
+.side-header h1 {
+  font-size: clamp(28px, 2.2vw, 42px);
+}
+
+.side-header p,
+.chart-panel .panel-header p,
+.town-summary {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.chart-panel .panel-header p {
+  margin: 4px 0 0 0;
+}
+
+.side-header p {
+  margin: 6px 0 0 0;
 }
 
 .empty-state {
@@ -248,10 +303,16 @@ button:disabled {
 
   .main-grid {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .map-panel,
   .chart-panel {
+    min-height: auto;
+    height: auto;
+  }
+
+  .map-container {
     min-height: 680px;
   }
 }
@@ -261,7 +322,7 @@ button:disabled {
     padding: 14px;
   }
 
-  .topbar,
+  .side-header,
   .panel-header {
     flex-direction: column;
   }

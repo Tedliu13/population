@@ -69,17 +69,28 @@ async function init() {
   setupControls();
   buildMap();
   buildChartSkeleton();
+  resetTransform();
   updateAll();
+  window.addEventListener("resize", () => {
+    const fitted = getFitTransform();
+    if (state.transform.scale <= fitted.scale * 1.15) {
+      state.transform = fitted;
+      applyTransform();
+    }
+  });
 }
 
 function configureBaseState() {
-  state.selectedCode = state.geometry.towns[0]?.code ?? null;
+  state.selectedCode = state.geometry.towns.find((item) => item.code === "63000050")?.code
+    ?? state.geometry.towns[0]?.code
+    ?? null;
   els.sampleWindowSelect.value = state.sampleWindow;
   els.trendTypeSelect.value = state.trendType;
   els.mapMetricSelect.value = state.mapMetric;
   els.sourceSelect.value = state.source;
   const vb = state.geometry.viewBox;
   els.mapSvg.setAttribute("viewBox", `0 0 ${vb.width} ${vb.height}`);
+  state.transform = { scale: 1, tx: 0, ty: 0 };
 }
 
 function setupControls() {
@@ -196,7 +207,6 @@ function buildMap() {
 
   els.townLayer.appendChild(fragPaths);
   els.labelLayer.appendChild(fragLabels);
-  applyTransform();
 }
 
 function setupPanZoom() {
@@ -236,7 +246,9 @@ function setupPanZoom() {
 
 function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = els.mapContainer.clientHeight / 2) {
   const oldScale = state.transform.scale;
-  const newScale = Math.max(1, Math.min(12, oldScale * factor));
+  const fitted = getFitTransform();
+  const minScale = Math.max(0.3, fitted.scale * 0.8);
+  const newScale = Math.max(minScale, Math.min(12, oldScale * factor));
   const svgRect = els.mapSvg.getBoundingClientRect();
   const px = clientX - svgRect.left;
   const py = clientY - svgRect.top;
@@ -247,8 +259,24 @@ function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = el
 }
 
 function resetTransform() {
-  state.transform = { scale: 1, tx: 0, ty: 0 };
+  state.transform = getFitTransform();
   applyTransform();
+}
+
+function getFitTransform() {
+  const svgRect = els.mapSvg.getBoundingClientRect();
+  const bbox = els.townLayer.getBBox();
+  if (!svgRect.width || !svgRect.height || !bbox.width || !bbox.height) {
+    return { scale: 1, tx: 0, ty: 0 };
+  }
+
+  const padding = 18;
+  const scaleX = (svgRect.width - padding * 2) / bbox.width;
+  const scaleY = (svgRect.height - padding * 2) / bbox.height;
+  const scale = Math.min(scaleX, scaleY);
+  const tx = (svgRect.width - bbox.width * scale) / 2 - bbox.x * scale;
+  const ty = (svgRect.height - bbox.height * scale) / 2 - bbox.y * scale;
+  return { scale, tx, ty };
 }
 
 function applyTransform() {
