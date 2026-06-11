@@ -331,17 +331,15 @@ function getCurrentPopulationMap() {
 }
 
 function updateMap() {
-  const titleParts = [];
-  titleParts.push(state.trendType === "linear" ? "線性" : "指數");
-  titleParts.push(state.sampleWindow.replace("y_", " 年樣本 "));
-  if (state.mapMetric === "shareTrend") {
-    titleParts.push("平均人口占比變化量");
+  const trendLabel = state.trendType === "linear" ? "線性" : "指數";
+  const windowLabel = state.sampleWindow.replace("y_", " 年樣本 ");
+  let metricLabel = "平均人口占比變化量";
+  if (state.mapMetric === "population") {
+    metricLabel = `${state.year} 人口數`;
   } else if (state.mapMetric === "changeFrom2025") {
-    titleParts.push(`${state.source.toUpperCase()} ${state.scenario} ${state.year} 相對2025年人口改變量`);
-  } else {
-    titleParts.push(`${state.source.toUpperCase()} ${state.scenario} ${state.year} 人口數`);
+    metricLabel = `${state.year} 相對2025年人口改變量`;
   }
-  els.mapTitle.textContent = titleParts.join("｜");
+  els.mapTitle.textContent = `各鄉鎮區 ${metricLabel}｜${state.scenario}｜${windowLabel}｜${trendLabel}`;
 
   const trendValues = state.trends.values[state.trendType][state.sampleWindow];
   const populationValues = state.mapMetric === "population" ? getCurrentPopulationMap() : null;
