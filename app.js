@@ -264,18 +264,18 @@ function resetTransform() {
 }
 
 function getFitTransform() {
-  const svgRect = els.mapSvg.getBoundingClientRect();
+  const vb = state.geometry.viewBox;
   const bbox = els.townLayer.getBBox();
-  if (!svgRect.width || !svgRect.height || !bbox.width || !bbox.height) {
+  if (!vb?.width || !vb?.height || !bbox.width || !bbox.height) {
     return { scale: 1, tx: 0, ty: 0 };
   }
 
-  const padding = 18;
-  const scaleX = (svgRect.width - padding * 2) / bbox.width;
-  const scaleY = (svgRect.height - padding * 2) / bbox.height;
+  const padding = 24;
+  const scaleX = (vb.width - padding * 2) / bbox.width;
+  const scaleY = (vb.height - padding * 2) / bbox.height;
   const scale = Math.min(scaleX, scaleY);
-  const tx = (svgRect.width - bbox.width * scale) / 2 - bbox.x * scale;
-  const ty = (svgRect.height - bbox.height * scale) / 2 - bbox.y * scale;
+  const tx = (vb.width - bbox.width * scale) / 2 - bbox.x * scale;
+  const ty = (vb.height - bbox.height * scale) / 2 - bbox.y * scale;
   return { scale, tx, ty };
 }
 
@@ -306,11 +306,18 @@ function updateLegend() {
       <div class="legend-item"><div class="swatch" style="background:#f7f6f2"></div><span>接近 0</span></div>
       <div class="legend-item"><div class="swatch" style="background:#c9372c"></div><span>上升趨勢 ${max.toFixed(6)}</span></div>
     `;
-  } else {
+  } else if (state.mapMetric === "population") {
     const range = getProjectionConfig().populationRange;
     els.legend.innerHTML = `
       <div class="legend-item"><div class="swatch" style="background:#fff3c8"></div><span>較低人口 ${Math.round(range.min).toLocaleString()}</span></div>
       <div class="legend-item"><div class="swatch" style="background:#d6632a"></div><span>較高人口 ${Math.round(range.max).toLocaleString()}</span></div>
+    `;
+  } else {
+    const maxChange = getGlobalPopulationChangeAbsMax();
+    els.legend.innerHTML = `
+      <div class="legend-item"><div class="swatch" style="background:#1f5bff"></div><span>減少 ${Math.round(-maxChange).toLocaleString()}</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#f7f6f2"></div><span>接近 0</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#c9372c"></div><span>增加 ${Math.round(maxChange).toLocaleString()}</span></div>
     `;
   }
 }
@@ -326,6 +333,8 @@ function updateMap() {
   titleParts.push(state.sampleWindow.replace("y_", " 年樣本 "));
   if (state.mapMetric === "shareTrend") {
     titleParts.push("平均人口占比變化量");
+  } else if (state.mapMetric === "changeFrom2025") {
+    titleParts.push(`${state.source.toUpperCase()} ${state.scenario} ${state.year} 相對2025年人口改變量`);
   } else {
     titleParts.push(`${state.source.toUpperCase()} ${state.scenario} ${state.year} 人口數`);
   }
@@ -333,7 +342,11 @@ function updateMap() {
 
   const trendValues = state.trends.values[state.trendType][state.sampleWindow];
   const populationValues = state.mapMetric === "population" ? getCurrentPopulationMap() : null;
+  const changeValues = state.mapMetric === "changeFrom2025"
+    ? getCurrentPopulationMap().map((value, idx) => value - getScenarioData().populations["2025"][idx])
+    : null;
   const popRange = getProjectionConfig().populationRange;
+  const maxChange = getGlobalPopulationChangeAbsMax();
 
   state.geometry.towns.forEach((town, idx) => {
     const node = townNodes.get(town.code);
@@ -341,12 +354,33 @@ function updateMap() {
     if (state.mapMetric === "shareTrend") {
       const value = trendValues[town.code] ?? 0;
       fill = interpolateDiverging(value, state.trends.sharedRange.min, state.trends.sharedRange.max);
+    } else if (changeValues) {
+      fill = interpolateDiverging(changeValues[idx], -maxChange, maxChange);
     } else if (populationValues) {
       fill = interpolateSequential(populationValues[idx], popRange.min, popRange.max);
     }
     node.setAttribute("fill", fill);
     node.classList.toggle("selected", town.code === state.selectedCode);
   });
+}
+
+function getGlobalPopulationChangeAbsMax() {
+  const proj = getProjectionConfig();
+  let absMax = 0;
+  Object.values(proj.sources).forEach((sourceEntry) => {
+    Object.values(sourceEntry.windows).forEach((windowEntry) => {
+      Object.values(windowEntry.scenarios).forEach((scenarioEntry) => {
+        const baseline = scenarioEntry.populations["2025"];
+        scenarioEntry.years.forEach((year) => {
+          const values = scenarioEntry.populations[year];
+          values.forEach((value, idx) => {
+            absMax = Math.max(absMax, Math.abs(value - baseline[idx]));
+          });
+        });
+      });
+    });
+  });
+  return absMax || 1;
 }
 
 function updateChart() {
@@ -359,7 +393,13 @@ function updateChart() {
   const scenarioData = getScenarioData();
   const years = scenarioData.years.map(Number);
   const idx = townIndex.get(town.code);
-  const values = years.map((year) => scenarioData.populations[String(year)][idx]);
+  const trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
+  const baselinePopulation = scenarioData.populations["2025"][idx];
+  const values = state.mapMetric === "shareTrend"
+    ? years.map(() => trendValue)
+    : state.mapMetric === "changeFrom2025"
+      ? years.map((year) => scenarioData.populations[String(year)][idx] - baselinePopulation)
+      : years.map((year) => scenarioData.populations[String(year)][idx]);
 
   els.chartTitle.textContent = `${town.county} ${town.town}`;
   els.chartSubtitle.textContent = `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}`;
@@ -367,8 +407,13 @@ function updateChart() {
 
   renderChart(years, values);
 
-  const trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code];
-  els.townSummary.textContent = `2025 基期人口 ${Math.round(values[0]).toLocaleString()} 人；目前年份 ${state.year} 人口 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人；平均人口占比變化量 ${trendValue.toFixed(8)}。`;
+  if (state.mapMetric === "shareTrend") {
+    els.townSummary.textContent = `平均人口占比變化量 ${trendValue.toFixed(8)}。此模式下各年份顯示相同值，僅作為該條件下的趨勢指標。`;
+  } else if (state.mapMetric === "changeFrom2025") {
+    els.townSummary.textContent = `2025 基期人口 ${Math.round(baselinePopulation).toLocaleString()} 人；目前年份 ${state.year} 相對2025年人口改變量 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人；平均人口占比變化量 ${trendValue.toFixed(8)}。`;
+  } else {
+    els.townSummary.textContent = `2025 基期人口 ${Math.round(values[0]).toLocaleString()} 人；目前年份 ${state.year} 人口 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人；平均人口占比變化量 ${trendValue.toFixed(8)}。`;
+  }
 }
 
 function renderEmptyChart(message) {
@@ -392,6 +437,9 @@ function renderChart(years, values) {
   const xScale = (year) => margin.left + ((year - years[0]) / (years[years.length - 1] - years[0] || 1)) * innerW;
   const yScale = (value) => margin.top + innerH - ((value - yMin) / (yMax - yMin || 1)) * innerH;
   const polyline = years.map((year, i) => `${xScale(year)},${yScale(values[i])}`).join(" ");
+  const valueFormatter = state.mapMetric === "shareTrend"
+    ? (value) => Number(value).toFixed(8)
+    : (value) => Math.round(value).toLocaleString();
 
   const yTicks = 5;
   const xTicks = years;
@@ -402,7 +450,7 @@ function renderChart(years, values) {
     const value = yMin + ((yMax - yMin) / yTicks) * i;
     const y = yScale(value);
     svgParts.push(`<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e4ddd1" stroke-dasharray="4 4"></line>`);
-    svgParts.push(`<text x="${margin.left - 12}" y="${y + 5}" text-anchor="end" fill="#6c6258" font-size="12">${Math.round(value).toLocaleString()}</text>`);
+    svgParts.push(`<text x="${margin.left - 12}" y="${y + 5}" text-anchor="end" fill="#6c6258" font-size="12">${valueFormatter(value)}</text>`);
   }
 
   xTicks.forEach((year) => {
@@ -438,9 +486,13 @@ function renderChart(years, values) {
     });
     node.addEventListener("mouseenter", () => {
       const year = node.dataset.year;
-      const value = Math.round(Number(node.dataset.value)).toLocaleString();
+      const value = valueFormatter(Number(node.dataset.value));
       node.setAttribute("opacity", "0.9");
-      els.chartSubtitle.textContent = `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}｜${year}：${value} 人`;
+      els.chartSubtitle.textContent = state.mapMetric === "shareTrend"
+        ? `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}｜${year}：${value}`
+        : state.mapMetric === "changeFrom2025"
+          ? `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}｜${year}：${value} 人`
+          : `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}｜${year}：${value} 人`;
     });
     node.addEventListener("mouseleave", () => {
       els.chartSubtitle.textContent = `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}`;
@@ -479,6 +531,11 @@ function getTooltipContent(code) {
   }
   const idx = townIndex.get(code);
   const pop = getCurrentPopulationMap()[idx];
+  if (state.mapMetric === "changeFrom2025") {
+    const base = getScenarioData().populations["2025"][idx];
+    const diff = pop - base;
+    return `${town.county} ${town.town}<br>${state.year} 相對2025年人口改變量：${Math.round(diff).toLocaleString()}`;
+  }
   return `${town.county} ${town.town}<br>${state.year} 人口：${Math.round(pop).toLocaleString()}`;
 }
 
@@ -510,22 +567,29 @@ function downloadCurrentTownCsv() {
   if (!town) return;
   const scenarioData = getScenarioData();
   const idx = townIndex.get(town.code);
+  const trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
+  const baselinePopulation = scenarioData.populations["2025"][idx];
   const rows = scenarioData.years.map((year) => ({
     year,
-    population: Math.round(scenarioData.populations[String(year)][idx]),
+    value: state.mapMetric === "shareTrend"
+      ? trendValue
+      : state.mapMetric === "changeFrom2025"
+        ? Math.round(scenarioData.populations[String(year)][idx] - baselinePopulation)
+        : Math.round(scenarioData.populations[String(year)][idx]),
   }));
   const csv = [
-    ["TOWNCODE", "COUNTYNAME", "TOWNNAME", "trend_type", "sample_window", "source", "scenario", "year", "population"].join(","),
+    ["TOWNCODE", "COUNTYNAME", "TOWNNAME", "trend_type", "map_metric", "sample_window", "source", "scenario", "year", "value"].join(","),
     ...rows.map((row) => [
       town.code,
       town.county,
       town.town,
       state.trendType,
+      state.mapMetric,
       state.sampleWindow,
       state.source,
       state.scenario,
       row.year,
-      row.population,
+      state.mapMetric === "shareTrend" ? row.value.toFixed(8) : row.value,
     ].join(",")),
   ].join("\n");
 
