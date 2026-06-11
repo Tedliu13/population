@@ -27,6 +27,7 @@ const els = {
   legend: document.getElementById("legend"),
   mapSvg: document.getElementById("mapSvg"),
   mapViewport: document.getElementById("mapViewport"),
+  insetLayer: document.getElementById("insetLayer"),
   townLayer: document.getElementById("townLayer"),
   labelLayer: document.getElementById("labelLayer"),
   tooltip: document.getElementById("tooltip"),
@@ -38,7 +39,11 @@ const els = {
   mapContainer: document.getElementById("mapContainer"),
 };
 
-const townIndex = new Map();
+const geometryTownIndex = new Map();
+const projectionCodeIndex = {
+  linear: new Map(),
+  exponential: new Map(),
+};
 const townNodes = new Map();
 const labelNodes = new Map();
 
@@ -62,8 +67,10 @@ async function init() {
   state.projections.exponential = exponential;
 
   geometry.towns.forEach((town, idx) => {
-    townIndex.set(town.code, idx);
+    geometryTownIndex.set(town.code, idx);
   });
+  linear.codes.forEach((code, idx) => projectionCodeIndex.linear.set(code, idx));
+  exponential.codes.forEach((code, idx) => projectionCodeIndex.exponential.set(code, idx));
 
   configureBaseState();
   setupControls();
@@ -71,19 +78,10 @@ async function init() {
   buildChartSkeleton();
   resetTransform();
   updateAll();
-  window.addEventListener("resize", () => {
-    const fitted = getFitTransform();
-    if (state.transform.scale <= fitted.scale * 1.15) {
-      state.transform = fitted;
-      applyTransform();
-    }
-  });
 }
 
 function configureBaseState() {
-  state.selectedCode = state.geometry.towns.find((item) => item.code === "63000050")?.code
-    ?? state.geometry.towns[0]?.code
-    ?? null;
+  state.selectedCode = null;
   els.sampleWindowSelect.value = state.sampleWindow;
   els.trendTypeSelect.value = state.trendType;
   els.mapMetricSelect.value = state.mapMetric;
@@ -146,6 +144,10 @@ function getScenarioData() {
   return proj.sources[state.source].windows[state.sampleWindow].scenarios[state.scenario];
 }
 
+function getProjectionIndex(code) {
+  return projectionCodeIndex[state.trendType].get(code);
+}
+
 function syncScenarioOptions() {
   const proj = getProjectionConfig();
   const windowData = proj.sources[state.source].windows[state.sampleWindow];
@@ -180,6 +182,7 @@ function syncYearOptions() {
 }
 
 function buildMap() {
+  buildInsets();
   const fragPaths = document.createDocumentFragment();
   const fragLabels = document.createDocumentFragment();
 
@@ -192,7 +195,7 @@ function buildMap() {
     path.addEventListener("mousemove", moveTooltip);
     path.addEventListener("mouseleave", hideTooltip);
     path.addEventListener("click", () => {
-      state.selectedCode = town.code;
+      state.selectedCode = state.selectedCode === town.code ? null : town.code;
       updateMap();
       updateChart();
     });
@@ -212,6 +215,33 @@ function buildMap() {
   els.labelLayer.appendChild(fragLabels);
 }
 
+function buildInsets() {
+  const frag = document.createDocumentFragment();
+  const insetDefs = [
+    { key: "matsu", label: "馬祖" },
+    { key: "kinmen", label: "金門" },
+  ];
+  insetDefs.forEach(({ key, label }) => {
+    const region = state.geometry.regions[key];
+    if (!region) return;
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", region.x);
+    rect.setAttribute("y", region.y);
+    rect.setAttribute("width", region.width);
+    rect.setAttribute("height", region.height);
+    rect.setAttribute("class", "inset-frame");
+    frag.appendChild(rect);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", region.x + region.width / 2);
+    text.setAttribute("y", region.y - 10);
+    text.setAttribute("class", "inset-title");
+    text.textContent = label;
+    frag.appendChild(text);
+  });
+  els.insetLayer.appendChild(frag);
+}
+
 function setupPanZoom() {
   let dragging = false;
   let startX = 0;
@@ -223,6 +253,14 @@ function setupPanZoom() {
     event.preventDefault();
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
     zoomBy(factor, event.offsetX, event.offsetY);
+  });
+
+  els.mapSvg.addEventListener("click", (event) => {
+    if (event.target === els.mapSvg || event.target === els.mapViewport || event.target === els.townLayer || event.target === els.labelLayer) {
+      state.selectedCode = null;
+      updateMap();
+      updateChart();
+    }
   });
 
   els.mapSvg.addEventListener("mousedown", (event) => {
@@ -249,8 +287,7 @@ function setupPanZoom() {
 
 function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = els.mapContainer.clientHeight / 2) {
   const oldScale = state.transform.scale;
-  const fitted = getFitTransform();
-  const minScale = Math.max(0.3, fitted.scale * 0.8);
+  const minScale = 0.55;
   const newScale = Math.max(minScale, Math.min(12, oldScale * factor));
   const svgRect = els.mapSvg.getBoundingClientRect();
   const px = clientX - svgRect.left;
@@ -262,24 +299,8 @@ function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = el
 }
 
 function resetTransform() {
-  state.transform = getFitTransform();
+  state.transform = { scale: 1, tx: 0, ty: 0 };
   applyTransform();
-}
-
-function getFitTransform() {
-  const vb = state.geometry.viewBox;
-  const bbox = els.townLayer.getBBox();
-  if (!vb?.width || !vb?.height || !bbox.width || !bbox.height) {
-    return { scale: 1, tx: 0, ty: 0 };
-  }
-
-  const padding = 24;
-  const scaleX = (vb.width - padding * 2) / bbox.width;
-  const scaleY = (vb.height - padding * 2) / bbox.height;
-  const scale = Math.min(scaleX, scaleY);
-  const tx = (vb.width - bbox.width * scale) / 2 - bbox.x * scale;
-  const ty = (vb.height - bbox.height * scale) / 2 - bbox.y * scale;
-  return { scale, tx, ty };
 }
 
 function applyTransform() {
@@ -349,16 +370,17 @@ function updateMap() {
   const popRange = getProjectionConfig().populationRange;
   const maxChange = getGlobalPopulationChangeAbsMax();
 
-  state.geometry.towns.forEach((town, idx) => {
+  state.geometry.towns.forEach((town) => {
     const node = townNodes.get(town.code);
+    const projectionIdx = getProjectionIndex(town.code);
     let fill = "#efebe3";
     if (state.mapMetric === "shareTrend") {
       const value = trendValues[town.code] ?? 0;
       fill = interpolateDiverging(value, state.trends.sharedRange.min, state.trends.sharedRange.max);
-    } else if (changeValues) {
-      fill = interpolateDiverging(changeValues[idx], -maxChange, maxChange);
-    } else if (populationValues) {
-      fill = interpolateSequential(populationValues[idx], popRange.min, popRange.max);
+    } else if (changeValues && projectionIdx !== undefined) {
+      fill = interpolateDiverging(changeValues[projectionIdx], -maxChange, maxChange);
+    } else if (populationValues && projectionIdx !== undefined) {
+      fill = interpolateSequential(populationValues[projectionIdx], popRange.min, popRange.max);
     }
     node.setAttribute("fill", fill);
     node.classList.toggle("selected", town.code === state.selectedCode);
@@ -385,30 +407,50 @@ function getGlobalPopulationChangeAbsMax() {
 }
 
 function updateChart() {
-  const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
-  if (!town) {
-    renderEmptyChart("請點選左側鄉鎮區");
-    return;
-  }
-
   const scenarioData = getScenarioData();
   const years = scenarioData.years.map(Number);
-  const idx = townIndex.get(town.code);
-  const trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
-  const baselinePopulation = scenarioData.populations["2025"][idx];
-  const values = state.mapMetric === "shareTrend"
-    ? years.map(() => trendValue)
-    : state.mapMetric === "changeFrom2025"
-      ? years.map((year) => scenarioData.populations[String(year)][idx] - baselinePopulation)
-      : years.map((year) => scenarioData.populations[String(year)][idx]);
+  const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
+  let values;
+  let trendValue = 1;
+  let baselinePopulation = 0;
 
-  els.chartTitle.textContent = `${town.county} ${town.town}`;
+  if (town) {
+    const idx = getProjectionIndex(town.code);
+    trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
+    baselinePopulation = scenarioData.populations["2025"][idx];
+    values = state.mapMetric === "shareTrend"
+      ? years.map(() => trendValue)
+      : state.mapMetric === "changeFrom2025"
+        ? years.map((year) => scenarioData.populations[String(year)][idx] - baselinePopulation)
+        : years.map((year) => scenarioData.populations[String(year)][idx]);
+    els.chartTitle.textContent = `${town.county} ${town.town}`;
+  } else {
+    const yearlyTotals = years.map((year) =>
+      scenarioData.populations[String(year)].reduce((sum, value) => sum + value, 0)
+    );
+    baselinePopulation = yearlyTotals[0];
+    values = state.mapMetric === "shareTrend"
+      ? years.map(() => 1)
+      : state.mapMetric === "changeFrom2025"
+        ? yearlyTotals.map((value) => value - baselinePopulation)
+        : yearlyTotals;
+    els.chartTitle.textContent = "總人口";
+  }
+
   els.chartSubtitle.textContent = `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}`;
   els.downloadCsvBtn.disabled = false;
 
   renderChart(years, values);
 
-  if (state.mapMetric === "shareTrend") {
+  if (!town) {
+    if (state.mapMetric === "shareTrend") {
+      els.townSummary.textContent = "總人口占比固定為 1。此模式下各年份顯示相同值，表示全體鄉鎮總和。";
+    } else if (state.mapMetric === "changeFrom2025") {
+      els.townSummary.textContent = `2025 基期總人口 ${Math.round(baselinePopulation).toLocaleString()} 人；目前年份 ${state.year} 相對2025年總人口改變量 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人。`;
+    } else {
+      els.townSummary.textContent = `2025 基期總人口 ${Math.round(baselinePopulation).toLocaleString()} 人；目前年份 ${state.year} 總人口 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人。`;
+    }
+  } else if (state.mapMetric === "shareTrend") {
     els.townSummary.textContent = `平均人口占比變化量 ${trendValue.toFixed(8)}。此模式下各年份顯示相同值，僅作為該條件下的趨勢指標。`;
   } else if (state.mapMetric === "changeFrom2025") {
     els.townSummary.textContent = `2025 基期人口 ${Math.round(baselinePopulation).toLocaleString()} 人；目前年份 ${state.year} 相對2025年人口改變量 ${Math.round(values[years.indexOf(Number(state.year))]).toLocaleString()} 人；平均人口占比變化量 ${trendValue.toFixed(8)}。`;
@@ -530,7 +572,7 @@ function getTooltipContent(code) {
     const value = state.trends.values[state.trendType][state.sampleWindow][code] ?? 0;
     return `${town.county} ${town.town}<br>平均人口占比變化量：${value.toFixed(8)}`;
   }
-  const idx = townIndex.get(code);
+  const idx = getProjectionIndex(code);
   const pop = getCurrentPopulationMap()[idx];
   if (state.mapMetric === "changeFrom2025") {
     const base = getScenarioData().populations["2025"][idx];
@@ -564,26 +606,47 @@ function hideTooltip() {
 }
 
 function downloadCurrentTownCsv() {
-  const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
-  if (!town) return;
   const scenarioData = getScenarioData();
-  const idx = townIndex.get(town.code);
-  const trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
-  const baselinePopulation = scenarioData.populations["2025"][idx];
-  const rows = scenarioData.years.map((year) => ({
-    year,
-    value: state.mapMetric === "shareTrend"
-      ? trendValue
-      : state.mapMetric === "changeFrom2025"
-        ? Math.round(scenarioData.populations[String(year)][idx] - baselinePopulation)
-        : Math.round(scenarioData.populations[String(year)][idx]),
-  }));
+  const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
+  let trendValue = 1;
+  let baselinePopulation;
+  let rows;
+
+  if (town) {
+    const idx = getProjectionIndex(town.code);
+    trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
+    baselinePopulation = scenarioData.populations["2025"][idx];
+    rows = scenarioData.years.map((year) => ({
+      year,
+      value: state.mapMetric === "shareTrend"
+        ? trendValue
+        : state.mapMetric === "changeFrom2025"
+          ? Math.round(scenarioData.populations[String(year)][idx] - baselinePopulation)
+          : Math.round(scenarioData.populations[String(year)][idx]),
+    }));
+  } else {
+    const totals = Object.fromEntries(
+      scenarioData.years.map((year) => [
+        year,
+        scenarioData.populations[String(year)].reduce((sum, value) => sum + value, 0),
+      ])
+    );
+    baselinePopulation = totals["2025"];
+    rows = scenarioData.years.map((year) => ({
+      year,
+      value: state.mapMetric === "shareTrend"
+        ? 1
+        : state.mapMetric === "changeFrom2025"
+          ? Math.round(totals[year] - baselinePopulation)
+          : Math.round(totals[year]),
+    }));
+  }
   const csv = [
     ["TOWNCODE", "COUNTYNAME", "TOWNNAME", "trend_type", "map_metric", "sample_window", "source", "scenario", "year", "value"].join(","),
     ...rows.map((row) => [
-      town.code,
-      town.county,
-      town.town,
+      town?.code ?? "TOTAL",
+      town?.county ?? "全國",
+      town?.town ?? "總人口",
       state.trendType,
       state.mapMetric,
       state.sampleWindow,
@@ -598,7 +661,7 @@ function downloadCurrentTownCsv() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${town.code}_${state.trendType}_${state.sampleWindow}_${state.source}_${state.scenario}.csv`;
+  link.download = `${town?.code ?? "TOTAL"}_${state.trendType}_${state.sampleWindow}_${state.source}_${state.scenario}.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();

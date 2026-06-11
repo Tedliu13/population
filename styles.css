@@ -233,6 +233,24 @@ button:disabled {
   display: block;
 }
 
+.inset-frame {
+  fill: rgba(255, 253, 250, 0);
+  stroke: rgba(73, 62, 50, 0.62);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  rx: 10;
+  ry: 10;
+}
+
+.inset-title {
+  font-size: 18px;
+  font-weight: 700;
+  fill: rgba(38, 31, 25, 0.88);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
 .tooltip {
   position: absolute;
   z-index: 10;
