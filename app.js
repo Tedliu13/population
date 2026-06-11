@@ -46,7 +46,6 @@ const projectionCodeIndex = {
 };
 const townNodes = new Map();
 const labelNodes = new Map();
-
 async function loadJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load ${url}`);
@@ -206,6 +205,8 @@ function buildMap() {
     label.setAttribute("x", town.labelX);
     label.setAttribute("y", town.labelY);
     label.setAttribute("class", "town-label");
+    label.dataset.x = town.labelX;
+    label.dataset.y = town.labelY;
     label.textContent = town.town;
     fragLabels.appendChild(label);
     labelNodes.set(town.code, label);
@@ -307,7 +308,12 @@ function applyTransform() {
   const { scale, tx, ty } = state.transform;
   els.mapViewport.setAttribute("transform", `translate(${tx} ${ty}) scale(${scale})`);
   const showLabels = scale >= 2.25;
-  labelNodes.forEach((node) => node.classList.toggle("visible", showLabels));
+  labelNodes.forEach((node) => {
+    node.classList.toggle("visible", showLabels);
+    const x = Number(node.dataset.x || 0);
+    const y = Number(node.dataset.y || 0);
+    node.setAttribute("transform", `translate(${x} ${y}) scale(${1 / scale}) translate(${-x} ${-y})`);
+  });
 }
 
 function buildChartSkeleton() {
