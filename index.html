@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Population</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>台灣鄉鎮人口推估查詢</h1>
+        <p>2025 為基期，支援線性與指數占比法、5/10/18 年樣本，以及 IPCC / 台灣總人口情境。</p>
+      </div>
+      <div class="actions">
+        <button id="resetViewBtn" type="button">重設地圖</button>
+      </div>
+    </header>
+
+    <section class="controls">
+      <label>
+        <span>趨勢推估類型</span>
+        <select id="trendTypeSelect">
+          <option value="linear">線性</option>
+          <option value="exponential">指數</option>
+        </select>
+      </label>
+      <label>
+        <span>地圖選擇</span>
+        <select id="mapMetricSelect">
+          <option value="shareTrend">平均人口占比變化量</option>
+          <option value="population">人口數</option>
+        </select>
+      </label>
+      <label>
+        <span>樣本年數</span>
+        <select id="sampleWindowSelect">
+          <option value="5y_2021_2025">5 年</option>
+          <option value="10y_2016_2025">10 年</option>
+          <option value="18y_2008_2025">18 年</option>
+        </select>
+      </label>
+      <label>
+        <span>總人口版本</span>
+        <select id="sourceSelect">
+          <option value="taiwan">台灣推估</option>
+          <option value="ipcc">IPCC</option>
+        </select>
+      </label>
+      <label>
+        <span>情境</span>
+        <select id="scenarioSelect"></select>
+      </label>
+      <label>
+        <span>年份</span>
+        <select id="yearSelect"></select>
+      </label>
+    </section>
+
+    <main class="main-grid">
+      <section class="map-panel">
+        <div class="panel-header">
+          <h2 id="mapTitle">地圖</h2>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div class="map-tools">
+          <button id="zoomInBtn" type="button">+</button>
+          <button id="zoomOutBtn" type="button">-</button>
+        </div>
+        <div id="mapContainer" class="map-container">
+          <svg id="mapSvg" class="map-svg" aria-label="Taiwan township map">
+            <g id="mapViewport">
+              <g id="townLayer"></g>
+              <g id="labelLayer"></g>
+            </g>
+          </svg>
+          <div id="tooltip" class="tooltip hidden"></div>
+        </div>
+      </section>
+
+      <section class="chart-panel">
+        <div class="panel-header">
+          <div>
+            <h2 id="chartTitle">請點選左側鄉鎮區</h2>
+            <p id="chartSubtitle">右圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步左圖人口數地圖。</p>
+          </div>
+          <button id="downloadCsvBtn" type="button" disabled>下載 CSV</button>
+        </div>
+        <div class="chart-wrapper">
+          <svg id="chartSvg" class="chart-svg" aria-label="Population projection chart"></svg>
+        </div>
+        <div id="townSummary" class="town-summary"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
