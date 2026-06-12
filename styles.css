@@ -91,7 +91,7 @@ button:disabled {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
   gap: 8px 10px;
   padding: 12px;
 }
@@ -101,12 +101,54 @@ button:disabled {
   gap: 4px;
 }
 
+.controls .scenario-group {
+  grid-column: 1 / -1;
+}
+
 .controls select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px;
   background: #fff;
+}
+
+.scenario-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  max-height: 132px;
+  overflow: auto;
+}
+
+.scenario-checklist .scenario-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.scenario-checklist .scenario-check input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.scenario-checklist .scenario-check span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .main-grid {
@@ -156,6 +198,29 @@ button:disabled {
   margin-bottom: 8px;
 }
 
+.chart-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.map-scenario-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.map-scenario-row select {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #fff;
+  min-width: 220px;
+  color: var(--text);
+}
+
 .legend {
   min-width: 190px;
   font-size: 13px;
@@ -178,7 +243,7 @@ button:disabled {
 .map-tools {
   position: absolute;
   right: 16px;
-  top: 98px;
+  top: 148px;
   z-index: 5;
 }
 

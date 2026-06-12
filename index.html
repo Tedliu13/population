@@ -45,19 +45,12 @@
             </select>
           </label>
           <label>
-            <span>總人口版本</span>
-            <select id="sourceSelect">
-              <option value="taiwan">台灣推估</option>
-              <option value="ipcc">IPCC</option>
-            </select>
-          </label>
-          <label>
-            <span>情境</span>
-            <select id="scenarioSelect"></select>
-          </label>
-          <label>
             <span>年份</span>
             <select id="yearSelect"></select>
+          </label>
+          <label class="scenario-group">
+            <span>情境</span>
+            <div id="scenarioChecklist" class="scenario-checklist"></div>
           </label>
         </section>
 
@@ -66,7 +59,9 @@
             <h2 id="chartTitle">全台</h2>
             <p id="chartSubtitle">左圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步右圖人口數地圖。</p>
           </div>
-          <button id="downloadCsvBtn" type="button" disabled>下載 CSV</button>
+          <div class="chart-actions">
+            <button id="downloadCsvBtn" type="button" disabled>下載 CSV</button>
+          </div>
         </div>
         <div class="chart-wrapper">
           <svg id="chartSvg" class="chart-svg" aria-label="Population projection chart"></svg>
@@ -76,7 +71,13 @@
 
       <section class="map-panel">
         <div class="panel-header">
-          <h2 id="mapTitle">地圖</h2>
+          <div>
+            <h2 id="mapTitle">地圖</h2>
+            <div class="map-scenario-row">
+              <span>地圖情境</span>
+              <select id="mapScenarioSelect"></select>
+            </div>
+          </div>
           <div id="legend" class="legend"></div>
         </div>
         <div class="map-tools">
