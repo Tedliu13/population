@@ -60,6 +60,10 @@ body {
   color: var(--muted);
 }
 
+.town-summary {
+  min-height: 3.2em;
+}
+
 .actions,
 .map-tools {
   display: flex;

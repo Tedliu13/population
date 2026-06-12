@@ -47,7 +47,16 @@ const projectionCodeIndex = {
 };
 const townNodes = new Map();
 const labelNodes = new Map();
-const DEFAULT_SCENARIOS = ["ipcc|SSP4", "taiwan|中推估"];
+const DEFAULT_SCENARIOS = [
+  "ipcc|SSP1",
+  "ipcc|SSP2",
+  "ipcc|SSP3",
+  "ipcc|SSP4",
+  "ipcc|SSP5",
+  "taiwan|低推估",
+  "taiwan|中推估",
+  "taiwan|高推估",
+];
 const SCENARIO_COLORS = ["#9d2e22", "#1f5bff", "#2f8f4e", "#a25ddc", "#d68b1f", "#006d77", "#bb3e03", "#6a4c93"];
 
 function getScenarioLabel(source, scenario) {
@@ -652,9 +661,14 @@ function renderChart(seriesList) {
   });
 
   seriesList.forEach((series, idx) => {
-    const legendY = margin.top + 8 + idx * 20;
-    svgParts.push(`<line x1="${width - margin.right - 170}" y1="${legendY}" x2="${width - margin.right - 146}" y2="${legendY}" stroke="${series.color}" stroke-width="3"></line>`);
-    svgParts.push(`<text x="${width - margin.right - 138}" y="${legendY + 4}" fill="#6c6258" font-size="12">${series.label}</text>`);
+    const isIpcc = series.source === "ipcc";
+    const groupIndex = isIpcc
+      ? seriesList.filter((item, i) => i <= idx && item.source === "ipcc").length - 1
+      : seriesList.filter((item, i) => i <= idx && item.source === "taiwan").length - 1;
+    const legendBaseX = isIpcc ? width - margin.right - 250 : width - margin.right - 120;
+    const legendY = margin.top + 8 + groupIndex * 20;
+    svgParts.push(`<line x1="${legendBaseX}" y1="${legendY}" x2="${legendBaseX + 24}" y2="${legendY}" stroke="${series.color}" stroke-width="3"></line>`);
+    svgParts.push(`<text x="${legendBaseX + 32}" y="${legendY + 4}" fill="#6c6258" font-size="12">${series.label}</text>`);
   });
 
   els.chartSvg.innerHTML = svgParts.join("");
