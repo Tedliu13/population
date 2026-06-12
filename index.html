@@ -44,10 +44,6 @@
               <option value="18y_2008_2025">18 年</option>
             </select>
           </label>
-          <label>
-            <span>年份</span>
-            <select id="yearSelect"></select>
-          </label>
           <label class="scenario-group">
             <span>情境</span>
             <div id="scenarioChecklist" class="scenario-checklist"></div>
@@ -73,9 +69,15 @@
         <div class="panel-header">
           <div>
             <h2 id="mapTitle">地圖</h2>
-            <div class="map-scenario-row">
-              <span>地圖情境</span>
-              <select id="mapScenarioSelect"></select>
+            <div class="map-toolbar-row">
+              <div class="map-scenario-row">
+                <span>地圖情境</span>
+                <select id="mapScenarioSelect"></select>
+              </div>
+              <div class="map-year-row">
+                <span>年份</span>
+                <select id="yearSelect"></select>
+              </div>
             </div>
           </div>
           <div id="legend" class="legend"></div>
