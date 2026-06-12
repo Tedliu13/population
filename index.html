@@ -9,27 +9,6 @@
 <body>
   <div class="app-shell">
     <main class="main-grid">
-      <section class="map-panel">
-        <div class="panel-header">
-          <h2 id="mapTitle">地圖</h2>
-          <div id="legend" class="legend"></div>
-        </div>
-        <div class="map-tools">
-          <button id="zoomInBtn" type="button">+</button>
-          <button id="zoomOutBtn" type="button">-</button>
-        </div>
-        <div id="mapContainer" class="map-container">
-          <svg id="mapSvg" class="map-svg" aria-label="Taiwan township map">
-            <g id="mapViewport">
-              <g id="townLayer"></g>
-              <g id="insetLayer"></g>
-              <g id="labelLayer"></g>
-            </g>
-          </svg>
-          <div id="tooltip" class="tooltip hidden"></div>
-        </div>
-      </section>
-
       <section class="chart-panel">
         <header class="side-header">
           <div>
@@ -84,8 +63,8 @@
 
         <div class="panel-header chart-header">
           <div>
-            <h2 id="chartTitle">請點選左側鄉鎮區</h2>
-            <p id="chartSubtitle">右圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步左圖人口數地圖。</p>
+            <h2 id="chartTitle">全台</h2>
+            <p id="chartSubtitle">左圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步右圖人口數地圖。</p>
           </div>
           <button id="downloadCsvBtn" type="button" disabled>下載 CSV</button>
         </div>
@@ -93,6 +72,28 @@
           <svg id="chartSvg" class="chart-svg" aria-label="Population projection chart"></svg>
         </div>
         <div id="townSummary" class="town-summary"></div>
+      </section>
+
+      <section class="map-panel">
+        <div class="panel-header">
+          <h2 id="mapTitle">地圖</h2>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div class="map-tools">
+          <button id="zoomInBtn" type="button">+</button>
+          <button id="zoomOutBtn" type="button">-</button>
+        </div>
+        <div id="mapContainer" class="map-container">
+          <svg id="mapSvg" class="map-svg" aria-label="Taiwan township map">
+            <g id="mapViewport">
+              <g id="townLayer"></g>
+              <g id="countyLayer"></g>
+              <g id="insetLayer"></g>
+              <g id="labelLayer"></g>
+            </g>
+          </svg>
+          <div id="tooltip" class="tooltip hidden"></div>
+        </div>
       </section>
     </main>
   </div>

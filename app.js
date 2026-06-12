@@ -27,6 +27,7 @@ const els = {
   legend: document.getElementById("legend"),
   mapSvg: document.getElementById("mapSvg"),
   mapViewport: document.getElementById("mapViewport"),
+  countyLayer: document.getElementById("countyLayer"),
   insetLayer: document.getElementById("insetLayer"),
   townLayer: document.getElementById("townLayer"),
   labelLayer: document.getElementById("labelLayer"),
@@ -181,6 +182,7 @@ function syncYearOptions() {
 }
 
 function buildMap() {
+  buildCounties();
   buildInsets();
   const fragPaths = document.createDocumentFragment();
   const fragLabels = document.createDocumentFragment();
@@ -214,6 +216,18 @@ function buildMap() {
 
   els.townLayer.appendChild(fragPaths);
   els.labelLayer.appendChild(fragLabels);
+}
+
+function buildCounties() {
+  const frag = document.createDocumentFragment();
+  (state.geometry.counties || []).forEach((county) => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", county.path);
+    path.setAttribute("class", "county-path");
+    path.dataset.county = county.county;
+    frag.appendChild(path);
+  });
+  els.countyLayer.appendChild(frag);
 }
 
 function buildInsets() {
@@ -257,7 +271,7 @@ function setupPanZoom() {
   });
 
   els.mapSvg.addEventListener("click", (event) => {
-    if (event.target === els.mapSvg || event.target === els.mapViewport || event.target === els.townLayer || event.target === els.labelLayer) {
+    if (event.target === els.mapSvg || event.target === els.mapViewport || event.target === els.townLayer || event.target === els.countyLayer || event.target === els.labelLayer) {
       state.selectedCode = null;
       updateMap();
       updateChart();
@@ -440,7 +454,7 @@ function updateChart() {
       : state.mapMetric === "changeFrom2025"
         ? yearlyTotals.map((value) => value - baselinePopulation)
         : yearlyTotals;
-    els.chartTitle.textContent = "總人口";
+    els.chartTitle.textContent = "全台";
   }
 
   els.chartSubtitle.textContent = `${state.trendType === "linear" ? "線性" : "指數"}｜${state.source.toUpperCase()}｜${state.scenario}｜${state.sampleWindow}`;
@@ -652,7 +666,7 @@ function downloadCurrentTownCsv() {
     ...rows.map((row) => [
       town?.code ?? "TOTAL",
       town?.county ?? "全國",
-      town?.town ?? "總人口",
+      town?.town ?? "全台",
       state.trendType,
       state.mapMetric,
       state.sampleWindow,

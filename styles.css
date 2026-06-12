@@ -111,7 +111,7 @@ button:disabled {
 
 .main-grid {
   display: grid;
-  grid-template-columns: minmax(780px, 1.15fr) minmax(460px, 0.85fr);
+  grid-template-columns: minmax(460px, 0.85fr) minmax(780px, 1.15fr);
   gap: 16px;
   height: calc(100vh - 28px);
 }
@@ -219,6 +219,14 @@ button:disabled {
 .town-path.selected {
   stroke: #15110e;
   stroke-width: 1.7;
+}
+
+.county-path {
+  fill: none;
+  stroke: rgba(58, 49, 38, 0.38);
+  stroke-width: 0.95;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .town-label {
