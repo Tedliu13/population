@@ -10,6 +10,7 @@ const state = {
   mapScenarioKey: null,
   year: "2025",
   hoverCode: null,
+  lastPointer: null,
   transform: { scale: 1, tx: 0, ty: 0 },
 };
 
@@ -161,8 +162,14 @@ function setupControls() {
     updateChart();
   });
   els.downloadCsvBtn.addEventListener("click", downloadCurrentTownCsv);
-  els.zoomInBtn.addEventListener("click", () => zoomBy(1.25));
-  els.zoomOutBtn.addEventListener("click", () => zoomBy(0.8));
+  els.zoomInBtn.addEventListener("click", () => {
+    const pointer = state.lastPointer;
+    zoomBy(1.25, pointer?.x, pointer?.y);
+  });
+  els.zoomOutBtn.addEventListener("click", () => {
+    const pointer = state.lastPointer;
+    zoomBy(0.8, pointer?.x, pointer?.y);
+  });
   els.resetViewBtn.addEventListener("click", resetTransform);
   syncYearOptions();
   setupPanZoom();
@@ -362,8 +369,13 @@ function setupPanZoom() {
 
   els.mapSvg.addEventListener("wheel", (event) => {
     event.preventDefault();
+    state.lastPointer = { x: event.clientX, y: event.clientY };
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
     zoomBy(factor, event.offsetX, event.offsetY);
+  });
+
+  els.mapSvg.addEventListener("mousemove", (event) => {
+    state.lastPointer = { x: event.clientX, y: event.clientY };
   });
 
   els.mapSvg.addEventListener("click", (event) => {
@@ -760,63 +772,70 @@ function hideTooltip() {
 }
 
 function downloadCurrentTownCsv() {
-  const scenarioData = getScenarioDataByKey();
   const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
-  const { source, scenario } = parseScenarioKey(getMapScenarioKey());
-  let trendValue = 1;
-  let baselinePopulation;
-  let rows;
+  const seriesList = state.selectedScenarios.map((key) => {
+    const { source, scenario } = parseScenarioKey(key);
+    const scenarioData = getScenarioDataByKey(key);
+    const years = scenarioData.years.map(Number);
+    let values;
+    let trendValue = 1;
+    let baselinePopulation = 0;
+    if (town) {
+      const idx = getProjectionIndex(town.code);
+      trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
+      baselinePopulation = scenarioData.populations["2025"][idx];
+      values = state.mapMetric === "shareTrend"
+        ? years.map(() => trendValue)
+        : state.mapMetric === "changeFrom2025"
+          ? years.map((year) => scenarioData.populations[String(year)][idx] - baselinePopulation)
+          : years.map((year) => scenarioData.populations[String(year)][idx]);
+    } else {
+      const totals = Object.fromEntries(
+        years.map((year) => [
+          year,
+          scenarioData.populations[String(year)].reduce((sum, value) => sum + value, 0),
+        ])
+      );
+      baselinePopulation = totals[2025];
+      values = state.mapMetric === "shareTrend"
+        ? years.map(() => 1)
+        : state.mapMetric === "changeFrom2025"
+          ? years.map((year) => totals[year] - baselinePopulation)
+          : years.map((year) => totals[year]);
+    }
+    return { source, scenario, years, values };
+  });
 
-  if (town) {
-    const idx = getProjectionIndex(town.code);
-    trendValue = state.trends.values[state.trendType][state.sampleWindow][town.code] ?? 0;
-    baselinePopulation = scenarioData.populations["2025"][idx];
-    rows = scenarioData.years.map((year) => ({
-      year,
-      value: state.mapMetric === "shareTrend"
-        ? trendValue
-        : state.mapMetric === "changeFrom2025"
-          ? Math.round(scenarioData.populations[String(year)][idx] - baselinePopulation)
-          : Math.round(scenarioData.populations[String(year)][idx]),
-    }));
-  } else {
-    const totals = Object.fromEntries(
-      scenarioData.years.map((year) => [
+  const csvRows = [];
+  seriesList.forEach((series) => {
+    series.years.forEach((year, idx) => {
+      csvRows.push([
+        town?.code ?? "TOTAL",
+        town?.county ?? "全國",
+        town?.town ?? "全台",
+        state.trendType,
+        state.mapMetric,
+        state.sampleWindow,
+        series.source,
+        series.scenario,
+        getScenarioLabel(series.source, series.scenario),
         year,
-        scenarioData.populations[String(year)].reduce((sum, value) => sum + value, 0),
-      ])
-    );
-    baselinePopulation = totals["2025"];
-    rows = scenarioData.years.map((year) => ({
-      year,
-      value: state.mapMetric === "shareTrend"
-        ? 1
-        : state.mapMetric === "changeFrom2025"
-          ? Math.round(totals[year] - baselinePopulation)
-          : Math.round(totals[year]),
-    }));
-  }
+        state.mapMetric === "shareTrend" ? Number(series.values[idx]).toFixed(8) : Math.round(series.values[idx]),
+      ]);
+    });
+  });
+
   const csv = [
-    ["TOWNCODE", "COUNTYNAME", "TOWNNAME", "trend_type", "map_metric", "sample_window", "source", "scenario", "year", "value"].join(","),
-    ...rows.map((row) => [
-      town?.code ?? "TOTAL",
-      town?.county ?? "全國",
-      town?.town ?? "全台",
-      state.trendType,
-      state.mapMetric,
-      state.sampleWindow,
-      source,
-      scenario,
-      row.year,
-      state.mapMetric === "shareTrend" ? row.value.toFixed(8) : row.value,
-    ].join(",")),
+    ["TOWNCODE", "COUNTYNAME", "TOWNNAME", "trend_type", "map_metric", "sample_window", "source", "scenario", "scenario_label", "year", "value"].join(","),
+    ...csvRows.map((row) => row.join(",")),
   ].join("\n");
 
   const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${town?.code ?? "TOTAL"}_${state.trendType}_${state.sampleWindow}_${source}_${scenario}.csv`;
+  const fileLabel = town ? `${town.county}_${town.town}` : "全台";
+  link.download = `${fileLabel}_${state.trendType}_${state.sampleWindow}.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();
