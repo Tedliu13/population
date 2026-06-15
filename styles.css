@@ -240,6 +240,29 @@ button:disabled {
   color: var(--text);
 }
 
+.map-year-row {
+  flex: 1 1 420px;
+}
+
+.play-years-btn {
+  border-radius: 12px;
+  padding: 8px 14px;
+  line-height: 1;
+}
+
+#yearRange {
+  flex: 1 1 240px;
+  min-width: 180px;
+  accent-color: #b54c2f;
+}
+
+.year-value {
+  min-width: 48px;
+  color: var(--text);
+  font-weight: 700;
+  text-align: right;
+}
+
 .legend {
   min-width: 190px;
   font-size: 13px;
@@ -264,6 +287,13 @@ button:disabled {
   right: 16px;
   top: 148px;
   z-index: 5;
+  align-items: center;
+}
+
+.map-tools #resetViewBtn {
+  border-radius: 12px;
+  padding: 8px 12px;
+  line-height: 1;
 }
 
 .map-container,

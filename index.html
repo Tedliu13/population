@@ -15,9 +15,6 @@
             <h1>台灣鄉鎮人口推估查詢</h1>
             <p>2025 為基期，支援線性與指數占比法、5/10/18 年樣本，以及 IPCC / 台灣總人口情境。</p>
           </div>
-          <div class="actions">
-            <button id="resetViewBtn" type="button">重設地圖</button>
-          </div>
         </header>
 
         <section class="controls side-controls">
@@ -76,13 +73,16 @@
               </div>
               <div class="map-year-row">
                 <span>年份</span>
-                <select id="yearSelect"></select>
+                <button id="playYearsBtn" type="button" class="play-years-btn">播放</button>
+                <input id="yearRange" type="range" min="0" max="0" step="1" value="0">
+                <span id="yearValue" class="year-value">2025</span>
               </div>
             </div>
           </div>
           <div id="legend" class="legend"></div>
         </div>
         <div class="map-tools">
+          <button id="resetViewBtn" type="button">重設地圖</button>
           <button id="zoomInBtn" type="button">+</button>
           <button id="zoomOutBtn" type="button">-</button>
         </div>

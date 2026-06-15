@@ -9,6 +9,8 @@ const state = {
   selectedScenarios: [],
   mapScenarioKey: null,
   year: "2025",
+  availableYears: [],
+  playTimer: null,
   hoverCode: null,
   lastPointer: null,
   transform: { scale: 1, tx: 0, ty: 0 },
@@ -20,7 +22,9 @@ const els = {
   sampleWindowSelect: document.getElementById("sampleWindowSelect"),
   scenarioChecklist: document.getElementById("scenarioChecklist"),
   mapScenarioSelect: document.getElementById("mapScenarioSelect"),
-  yearSelect: document.getElementById("yearSelect"),
+  yearRange: document.getElementById("yearRange"),
+  yearValue: document.getElementById("yearValue"),
+  playYearsBtn: document.getElementById("playYearsBtn"),
   mapTitle: document.getElementById("mapTitle"),
   chartTitle: document.getElementById("chartTitle"),
   chartSubtitle: document.getElementById("chartSubtitle"),
@@ -135,32 +139,40 @@ function configureBaseState() {
 
 function setupControls() {
   els.trendTypeSelect.addEventListener("change", () => {
+    stopYearPlayback();
     state.trendType = els.trendTypeSelect.value;
     syncScenarioOptions();
     syncYearOptions();
     updateAll();
   });
   els.mapMetricSelect.addEventListener("change", () => {
+    stopYearPlayback();
     state.mapMetric = els.mapMetricSelect.value;
     syncYearOptions();
     updateAll();
   });
   els.sampleWindowSelect.addEventListener("change", () => {
+    stopYearPlayback();
     state.sampleWindow = els.sampleWindowSelect.value;
     syncScenarioOptions();
     syncYearOptions();
     updateAll();
   });
   els.mapScenarioSelect.addEventListener("change", () => {
+    stopYearPlayback();
     state.mapScenarioKey = els.mapScenarioSelect.value;
     syncYearOptions();
     updateAll();
   });
-  els.yearSelect.addEventListener("change", () => {
-    state.year = els.yearSelect.value;
+  els.yearRange.addEventListener("input", () => {
+    const years = state.availableYears;
+    const idx = Number(els.yearRange.value);
+    state.year = String(years[idx] ?? years[0] ?? state.year);
+    syncYearDisplay();
     updateMap();
     updateChart();
   });
+  els.playYearsBtn.addEventListener("click", toggleYearPlayback);
   els.downloadCsvBtn.addEventListener("click", downloadCurrentTownCsv);
   els.zoomInBtn.addEventListener("click", () => {
     const pointer = state.lastPointer;
@@ -269,19 +281,49 @@ function syncMapScenarioSelect(items = listAvailableScenarios()) {
 
 function syncYearOptions() {
   const years = getScenarioDataByKey(getMapScenarioKey()).years;
+  state.availableYears = years.map(Number);
   if (state.mapMetric === "changeFrom2025") {
     state.year = years[years.length - 1];
   } else if (!years.includes(state.year)) {
     state.year = years[0];
   }
-  els.yearSelect.innerHTML = "";
-  years.forEach((year) => {
-    const opt = document.createElement("option");
-    opt.value = year;
-    opt.textContent = year;
-    if (year === state.year) opt.selected = true;
-    els.yearSelect.appendChild(opt);
-  });
+  els.yearRange.min = "0";
+  els.yearRange.max = String(Math.max(0, years.length - 1));
+  els.yearRange.step = "1";
+  els.yearRange.value = String(Math.max(0, years.indexOf(state.year)));
+  syncYearDisplay();
+}
+
+function syncYearDisplay() {
+  els.yearValue.textContent = state.year;
+  els.yearRange.disabled = state.mapMetric === "shareTrend" || state.availableYears.length <= 1;
+}
+
+function stopYearPlayback() {
+  if (state.playTimer) {
+    window.clearInterval(state.playTimer);
+    state.playTimer = null;
+  }
+  els.playYearsBtn.textContent = "播放";
+}
+
+function toggleYearPlayback() {
+  if (state.mapMetric === "shareTrend" || state.availableYears.length <= 1) return;
+  if (state.playTimer) {
+    stopYearPlayback();
+    return;
+  }
+  els.playYearsBtn.textContent = "停止";
+  state.playTimer = window.setInterval(() => {
+    const years = state.availableYears;
+    const currentIdx = years.indexOf(Number(state.year));
+    const nextIdx = currentIdx >= years.length - 1 ? 0 : currentIdx + 1;
+    state.year = String(years[nextIdx]);
+    els.yearRange.value = String(nextIdx);
+    syncYearDisplay();
+    updateMap();
+    updateChart();
+  }, 900);
 }
 
 function buildMap() {
@@ -371,7 +413,7 @@ function setupPanZoom() {
     event.preventDefault();
     state.lastPointer = { x: event.clientX, y: event.clientY };
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
-    zoomBy(factor, event.offsetX, event.offsetY);
+    zoomBy(factor, event.clientX, event.clientY);
   });
 
   els.mapSvg.addEventListener("mousemove", (event) => {
@@ -443,7 +485,10 @@ function buildChartSkeleton() {
 }
 
 function updateAll() {
-  els.yearSelect.disabled = state.mapMetric === "shareTrend";
+  if (state.mapMetric === "shareTrend") {
+    stopYearPlayback();
+  }
+  syncYearDisplay();
   updateLegend();
   updateMap();
   updateChart();
@@ -461,7 +506,7 @@ function updateLegend() {
   } else if (state.mapMetric === "population") {
     const range = getProjectionConfig().populationRange;
     els.legend.innerHTML = `
-      <div class="legend-item"><div class="swatch" style="background:#fff3c8"></div><span>較低人口 ${Math.round(range.min).toLocaleString()}</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ffffff"></div><span>較低人口 ${Math.round(range.min).toLocaleString()}</span></div>
       <div class="legend-item"><div class="swatch" style="background:#d6632a"></div><span>較高人口 ${Math.round(range.max).toLocaleString()}</span></div>
     `;
   } else {
@@ -688,7 +733,8 @@ function renderChart(seriesList) {
     node.style.cursor = "pointer";
     node.addEventListener("click", () => {
       state.year = node.dataset.year;
-      els.yearSelect.value = state.year;
+      els.yearRange.value = String(Math.max(0, state.availableYears.indexOf(Number(state.year))));
+      syncYearDisplay();
       updateMap();
       updateChart();
     });
@@ -710,8 +756,9 @@ function renderChart(seriesList) {
 }
 
 function interpolateSequential(value, min, max) {
-  const t = clamp((value - min) / (max - min || 1), 0, 1);
-  return mixColor([255, 243, 200], [198, 49, 29], t);
+  const linearT = clamp((value - min) / (max - min || 1), 0, 1);
+  const t = Math.pow(linearT, 0.55);
+  return mixColor([255, 255, 255], [198, 49, 29], t);
 }
 
 function interpolateDiverging(value, min, max) {
