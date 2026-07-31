@@ -504,7 +504,7 @@ function updateLegend() {
       <div class="legend-item"><div class="swatch" style="background:#c9372c"></div><span>上升趨勢 ${max.toFixed(6)}</span></div>
     `;
   } else if (state.mapMetric === "population") {
-    const range = getProjectionConfig().populationRange;
+    const range = getPopulationRangeForCurrentScenario();
     els.legend.innerHTML = `
       <div class="legend-ramp" style="background:linear-gradient(90deg, #ffffff 0%, #bffcff 12%, #31a8ff 28%, #0057d8 42%, #fff200 58%, #ff9f0a 74%, #ff3b30 88%, #8f00ff 100%)"></div>
       <div class="legend-range">
@@ -527,6 +527,25 @@ function getCurrentPopulationMap() {
   return scenarioData.populations[state.year];
 }
 
+function getPopulationRangeForCurrentScenario() {
+  const scenarioData = getScenarioDataByKey(getMapScenarioKey());
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+
+  scenarioData.years.forEach((year) => {
+    const values = scenarioData.populations[year] || [];
+    values.forEach((value) => {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    });
+  });
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: 1 };
+  }
+  return { min, max };
+}
+
 function updateMap() {
   const trendLabel = state.trendType === "linear" ? "線性" : "指數";
   const windowLabel = state.sampleWindow.replace("y_", " 年樣本 ");
@@ -543,7 +562,7 @@ function updateMap() {
   const changeValues = state.mapMetric === "changeFrom2025"
     ? getCurrentPopulationMap().map((value, idx) => value - getScenarioDataByKey(getMapScenarioKey()).populations["2025"][idx])
     : null;
-  const popRange = getProjectionConfig().populationRange;
+  const popRange = getPopulationRangeForCurrentScenario();
   const maxChange = getGlobalPopulationChangeAbsMax();
 
   state.geometry.towns.forEach((town) => {
