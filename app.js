@@ -506,8 +506,11 @@ function updateLegend() {
   } else if (state.mapMetric === "population") {
     const range = getProjectionConfig().populationRange;
     els.legend.innerHTML = `
-      <div class="legend-item"><div class="swatch" style="background:#ffffff"></div><span>較低人口 ${Math.round(range.min).toLocaleString()}</span></div>
-      <div class="legend-item"><div class="swatch" style="background:#d6632a"></div><span>較高人口 ${Math.round(range.max).toLocaleString()}</span></div>
+      <div class="legend-ramp" style="background:linear-gradient(90deg, #ffffff 0%, #bffcff 12%, #31a8ff 28%, #0057d8 42%, #fff200 58%, #ff9f0a 74%, #ff3b30 88%, #8f00ff 100%)"></div>
+      <div class="legend-range">
+        <span>較低人口 ${Math.round(range.min).toLocaleString()}</span>
+        <span>較高人口 ${Math.round(range.max).toLocaleString()}</span>
+      </div>
     `;
   } else {
     const maxChange = getGlobalPopulationChangeAbsMax();
@@ -757,8 +760,20 @@ function renderChart(seriesList) {
 
 function interpolateSequential(value, min, max) {
   const linearT = clamp((value - min) / (max - min || 1), 0, 1);
-  const t = Math.pow(linearT, 0.55);
-  return mixColor([255, 255, 255], [198, 49, 29], t);
+  const t = Math.pow(linearT, 0.42);
+  return interpolateStops(
+    [
+      [255, 255, 255],
+      [191, 252, 255],
+      [49, 168, 255],
+      [0, 87, 216],
+      [255, 242, 0],
+      [255, 159, 10],
+      [255, 59, 48],
+      [143, 0, 255],
+    ],
+    t,
+  );
 }
 
 function interpolateDiverging(value, min, max) {
@@ -772,6 +787,15 @@ function interpolateDiverging(value, min, max) {
 function mixColor(a, b, t) {
   const c = a.map((channel, i) => Math.round(channel + (b[i] - channel) * t));
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+function interpolateStops(stops, t) {
+  const clamped = clamp(t, 0, 1);
+  const segments = stops.length - 1;
+  const scaled = clamped * segments;
+  const idx = Math.min(segments - 1, Math.floor(scaled));
+  const localT = scaled - idx;
+  return mixColor(stops[idx], stops[idx + 1], localT);
 }
 
 function clamp(value, min, max) {
