@@ -12,39 +12,56 @@
       <section class="chart-panel">
         <header class="side-header">
           <div>
-            <h1>台灣鄉鎮人口推估查詢</h1>
-            <p>2025 為基期，支援線性與指數占比法、5/10/18 年樣本，以及 IPCC / 台灣總人口情境。</p>
+            <h1 data-i18n="title">台灣鄉鎮人口推估查詢</h1>
           </div>
+          <label class="language-switch">
+            <span class="visually-hidden" data-i18n="language">語言</span>
+            <select id="languageSelect" aria-label="語言">
+              <option value="zh">繁體中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
         </header>
 
+        <div class="comparison-tabs" role="tablist" aria-label="Comparison">
+          <button id="scenarioTab" type="button" role="tab" aria-selected="true" data-i18n="scenarioComparison">情境比較</button>
+          <button id="methodTab" type="button" role="tab" aria-selected="false" data-i18n="methodComparison">推估方法比較</button>
+        </div>
         <section class="controls side-controls">
-          <label>
-            <span>趨勢推估類型</span>
+          <label id="comparisonScenarioField" hidden>
+            <span data-i18n="scenario">情境</span>
+            <select id="comparisonScenarioSelect"></select>
+          </label>
+          <label id="trendTypeField">
+            <span data-i18n="trendType">趨勢推估類型</span>
             <select id="trendTypeSelect">
-              <option value="linear">線性</option>
-              <option value="exponential">指數</option>
+              <option value="mixed:0.95" data-i18n="mixed095">混合型 φ =0.95</option>
+              <option value="mixed:0.9" selected data-i18n="mixed09">混合型 φ =0.9</option>
+              <option value="mixed:0.8" data-i18n="mixed08">混合型 φ =0.8</option>
+              <option value="linear" data-i18n="linear">線性</option>
+              <option value="exponential" data-i18n="exponential">指數</option>
             </select>
           </label>
           <label>
-            <span>地圖選擇</span>
+            <span data-i18n="mapMetric">地圖選擇</span>
             <select id="mapMetricSelect">
               <option value="shareTrend">平均人口占比變化量</option>
-              <option value="population">人口數</option>
-              <option value="changeFrom2025">相對2025年人口改變量</option>
+              <option value="population" data-i18n="population">人口數</option>
+              <option value="changeFrom2025" data-i18n="change">相對2025年人口改變量</option>
             </select>
           </label>
           <label>
-            <span>樣本年數</span>
+            <span data-i18n="sampleYears">樣本年數</span>
             <select id="sampleWindowSelect">
-              <option value="5y_2021_2025">5 年</option>
-              <option value="10y_2016_2025">10 年</option>
-              <option value="18y_2008_2025">18 年</option>
+              <option value="5y_2021_2025" data-i18n="years5">5 年</option>
+              <option value="10y_2016_2025" data-i18n="years10">10 年</option>
+              <option value="18y_2008_2025" data-i18n="years18">18 年</option>
             </select>
           </label>
-          <label class="scenario-group">
-            <span>情境</span>
+          <div id="scenarioGroup" class="scenario-group" role="group" aria-labelledby="scenarioGroupLabel">
+            <span id="scenarioGroupLabel" data-i18n="scenarios">情境</span>
             <div id="scenarioChecklist" class="scenario-checklist"></div>
-          </label>
+          </div>
         </section>
 
         <div class="panel-header chart-header">
@@ -53,7 +70,7 @@
             <p id="chartSubtitle">左圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步右圖人口數地圖。</p>
           </div>
           <div class="chart-actions">
-            <button id="downloadCsvBtn" type="button" disabled>下載 CSV</button>
+            <button id="downloadCsvBtn" type="button" disabled data-i18n="download">下載 CSV</button>
           </div>
         </div>
         <div class="chart-wrapper">
@@ -68,11 +85,11 @@
             <h2 id="mapTitle">地圖</h2>
             <div class="map-toolbar-row">
               <div class="map-scenario-row">
-                <span>地圖情境</span>
+                <span data-i18n="mapScenario">地圖情境</span>
                 <select id="mapScenarioSelect"></select>
               </div>
               <div class="map-year-row">
-                <span>年份</span>
+                <span data-i18n="year">年份</span>
                 <button id="playYearsBtn" type="button" class="play-years-btn">播放</button>
                 <input id="yearRange" type="range" min="0" max="0" step="1" value="0">
                 <span id="yearValue" class="year-value">2025</span>
@@ -82,7 +99,7 @@
           <div id="legend" class="legend"></div>
         </div>
         <div class="map-tools">
-          <button id="resetViewBtn" type="button">重設地圖</button>
+          <button id="resetViewBtn" type="button" data-i18n="reset">重設地圖</button>
           <button id="zoomInBtn" type="button">+</button>
           <button id="zoomOutBtn" type="button">-</button>
         </div>

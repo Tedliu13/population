@@ -1,0 +1,72 @@
+export const messages = {
+  zh: {
+    scenarioComparison: "情境比較", methodComparison: "推估方法比較", scenario: "情境",
+    mixed095: "混合型 φ =0.95", mixed09: "混合型 φ =0.9", mixed08: "混合型 φ =0.8",
+    title: "台灣鄉鎮人口推估查詢",
+    introduction: "2025 為基期，支援混合型、線性與指數占比法、5/10/18 年樣本，以及 IPCC / 台灣總人口情境。",
+    language: "語言", trendType: "趨勢推估類型", mixed: "混合型", linear: "線性", exponential: "指數",
+    mapMetric: "地圖選擇", shareTrend: "平均人口占比變化量", mixedShareTrend: "2025～2030 平均人口占比變化量",
+    population: "人口數", populationShort: "人口", change: "相對2025年人口改變量",
+    sampleYears: "樣本年數", years5: "5 年", years10: "10 年", years18: "18 年",
+    sampleWindow: "{years} 年樣本 {period}", damping: "阻尼係數 φ", halfLife: "原始趨勢強度約每 {years} 年減半",
+    scenarios: "情境", mapScenario: "地圖情境", year: "年份", play: "播放", stop: "停止",
+    allTaiwan: "全台", national: "全國", townships: "各鄉鎮區", download: "下載 CSV", reset: "重設地圖",
+    zoomIn: "放大地圖", zoomOut: "縮小地圖", mapAria: "臺灣鄉鎮人口地圖", chartAria: "人口推估曲線圖",
+    chartIntro: "曲線圖顯示 2025 年起的人口推估；點選某年資料點可同步右圖人口數地圖。",
+    low: "國發會-低發展", medium: "國發會-中發展", high: "國發會-高發展",
+    matsu: "馬祖", kinmen: "金門", decreaseTrend: "下降趨勢", increaseTrend: "上升趨勢", nearZero: "接近 0",
+    lowerPopulation: "較低人口", higherPopulation: "較高人口", decrease: "減少", increase: "增加",
+    noScenarios: "無可用情境", loadFailed: "載入失敗：{message}", missingPhi: "缺少阻尼係數 φ＝{phi} 的資料",
+    totalShareSummary: "總人口占比固定為 1。此模式下各年份顯示相同值，表示全體鄉鎮總和。",
+    totalPopulationSummary: "主情境 {scenario}：2025 基期總人口 {base} 人；目前年份 {year} 總人口 {value} 人。",
+    totalChangeSummary: "主情境 {scenario}：2025 基期總人口 {base} 人；目前年份 {year} 相對2025年總人口改變量 {value} 人。",
+    shareSummary: "主情境 {scenario}：{metric} {trend}。此模式下各年份顯示相同值，僅作為該條件下的趨勢指標。",
+    populationSummary: "主情境 {scenario}：2025 基期人口 {base} 人；目前年份 {year} 人口 {value} 人；{metric} {trend}。",
+    changeSummary: "主情境 {scenario}：2025 基期人口 {base} 人；目前年份 {year} 相對2025年人口改變量 {value} 人；{metric} {trend}。",
+    methodSummary: " 採用方法：{method}。", fixedWeight: "固定權重", dampedWeight: "阻尼權重", peopleValue: "{value} 人",
+  },
+  en: {
+    scenarioComparison: "Scenario comparison", methodComparison: "Method comparison", scenario: "Scenario",
+    mixed095: "Hybrid φ =0.95", mixed09: "Hybrid φ =0.9", mixed08: "Hybrid φ =0.8",
+    title: "Taiwan Township Population Projections",
+    introduction: "2025 baseline. Hybrid, linear and exponential share models with 5-, 10- or 18-year samples and IPCC / Taiwan population scenarios.",
+    language: "Language", trendType: "Projection model", mixed: "Hybrid", linear: "Linear", exponential: "Exponential",
+    mapMetric: "Map measure", shareTrend: "Mean annual population-share change", mixedShareTrend: "Mean annual share change, 2025–2030",
+    population: "Population", populationShort: "Population", change: "Population change since 2025",
+    sampleYears: "Sample period", years5: "5 years", years10: "10 years", years18: "18 years",
+    sampleWindow: "{years}-year sample {period}", damping: "Damping factor φ", halfLife: "Raw trend strength halves about every {years} years",
+    scenarios: "Scenarios", mapScenario: "Map scenario", year: "Year", play: "Play", stop: "Stop",
+    allTaiwan: "Taiwan total", national: "Taiwan", townships: "Townships", download: "Download CSV", reset: "Reset map",
+    zoomIn: "Zoom in", zoomOut: "Zoom out", mapAria: "Taiwan township population map", chartAria: "Population projection chart",
+    chartIntro: "Projections start in 2025. Select a chart point to show that year on the map.",
+    low: "NDC-Low", medium: "NDC-Medium", high: "NDC-High",
+    matsu: "Matsu", kinmen: "Kinmen", decreaseTrend: "Decreasing share", increaseTrend: "Increasing share", nearZero: "Near zero",
+    lowerPopulation: "Lower population", higherPopulation: "Higher population", decrease: "Decrease", increase: "Increase",
+    noScenarios: "No scenarios available", loadFailed: "Unable to load data: {message}", missingPhi: "Missing data for damping factor φ={phi}",
+    totalShareSummary: "The national population share is always 1. Each year shows the same value, representing all townships combined.",
+    totalPopulationSummary: "Primary scenario {scenario}: 2025 baseline total {base}; {year} total population {value}.",
+    totalChangeSummary: "Primary scenario {scenario}: 2025 baseline total {base}; population change in {year} since 2025: {value}.",
+    shareSummary: "Primary scenario {scenario}: {metric}: {trend}. This summary trend measure is shown unchanged across years.",
+    populationSummary: "Primary scenario {scenario}: 2025 baseline {base}; {year} population {value}; {metric}: {trend}.",
+    changeSummary: "Primary scenario {scenario}: 2025 baseline {base}; population change in {year} since 2025: {value}; {metric}: {trend}.",
+    methodSummary: " Selected method: {method}.", fixedWeight: "Fixed weight", dampedWeight: "Damped weight", peopleValue: "{value} people",
+  },
+};
+
+const counties = {
+  "宜蘭縣": "Yilan County", "新竹縣": "Hsinchu County", "苗栗縣": "Miaoli County", "彰化縣": "Changhua County",
+  "南投縣": "Nantou County", "雲林縣": "Yunlin County", "嘉義縣": "Chiayi County", "屏東縣": "Pingtung County",
+  "臺東縣": "Taitung County", "花蓮縣": "Hualien County", "澎湖縣": "Penghu County", "基隆市": "Keelung City",
+  "新竹市": "Hsinchu City", "嘉義市": "Chiayi City", "臺北市": "Taipei City", "高雄市": "Kaohsiung City",
+  "新北市": "New Taipei City", "臺中市": "Taichung City", "臺南市": "Tainan City", "桃園市": "Taoyuan City",
+  "連江縣": "Lienchiang County", "金門縣": "Kinmen County",
+};
+
+export function townNames(town, language) {
+  if (language !== "en") return { county: town.county, town: town.town };
+  const encoded = town.towneng?.split("_").slice(1).join(" ");
+  return {
+    county: counties[town.county] ?? town.county,
+    town: encoded ? encoded.replace(/(Township|District|City|Town)$/, " $1").trim() : town.town,
+  };
+}

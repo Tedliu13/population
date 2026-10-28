@@ -1,6 +1,6 @@
 :root {
-  --bg: #f5f1e8;
-  --panel: #fffdfa;
+  --bg: #ffffff;
+  --panel: #ffffff;
   --line: #d4c8b4;
   --text: #1f1b16;
   --muted: #6c6258;
@@ -18,9 +18,7 @@ body {
   margin: 0;
   font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(173, 88, 59, 0.08), transparent 24%),
-    linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+  background: var(--bg);
 }
 
 .app-shell {
@@ -33,7 +31,7 @@ body {
 .controls,
 .map-panel,
 .chart-panel {
-  background: rgba(255, 253, 250, 0.96);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -45,6 +43,42 @@ body {
   gap: 16px;
   align-items: flex-start;
   padding: 0 0 4px 0;
+}
+
+.side-header > div {
+  min-width: 0;
+}
+
+.language-switch {
+  flex: 0 0 auto;
+}
+
+.language-switch select {
+  max-width: 112px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+html[lang="en"] .side-header h1 {
+  font-size: clamp(21px, 1.7vw, 30px);
+  line-height: 1.15;
+}
+
+html[lang="en"] .town-label {
+  font-size: 11px;
 }
 
 .side-header h1,
@@ -107,6 +141,35 @@ button:disabled {
 
 .controls .scenario-group {
   grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+}
+
+.damping-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.damping-row[hidden] {
+  display: none;
+}
+
+.controls .damping-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controls .damping-field select {
+  width: 92px;
+}
+
+.damping-hint {
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .controls select {
@@ -205,6 +268,26 @@ button:disabled {
 .chart-header {
   margin-top: 0;
   margin-bottom: 8px;
+}
+
+.comparison-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.comparison-tabs button {
+  border-radius: 10px;
+  padding: 7px 14px;
+}
+
+.comparison-tabs button[aria-selected="true"] {
+  background: var(--text);
+  color: #fff;
+}
+
+.side-controls > [hidden] {
+  display: none;
 }
 
 .chart-actions {
@@ -318,7 +401,7 @@ button:disabled {
   min-height: 0;
   border: 1px solid #e0d7c7;
   border-radius: 16px;
-  background: linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%);
+  background: var(--panel);
   overflow: hidden;
 }
 
@@ -426,9 +509,17 @@ button:disabled {
   grid-template-rows: auto 1fr;
 }
 
-.chart-panel .panel-header h2,
 .side-header h1 {
   font-size: clamp(28px, 2.2vw, 42px);
+}
+
+.chart-panel .chart-header h2 {
+  font-size: clamp(20px, 1.4vw, 28px);
+  line-height: 1.2;
+}
+
+html[lang="en"] .chart-panel .chart-header h2 {
+  font-size: clamp(20px, 1.25vw, 26px);
 }
 
 .side-header p,
