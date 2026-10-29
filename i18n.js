@@ -1,5 +1,7 @@
 export const messages = {
   zh: {
+    zeroPopulation: "人口 0：白色",
+    palette: "圖例顏色", purple: "紫色", rose: "粉色", apricot: "橘色", countyTotal: "全縣市", mapNavigation: "地圖層級導覽",
     scenarioComparison: "情境比較", methodComparison: "推估方法比較", scenario: "情境",
     mixed095: "混合型 φ =0.95", mixed09: "混合型 φ =0.9", mixed08: "混合型 φ =0.8",
     title: "台灣鄉鎮人口推估查詢",
@@ -9,7 +11,7 @@ export const messages = {
     population: "人口數", populationShort: "人口", change: "相對2025年人口改變量",
     sampleYears: "樣本年數", years5: "5 年", years10: "10 年", years18: "18 年",
     sampleWindow: "{years} 年樣本 {period}", damping: "阻尼係數 φ", halfLife: "原始趨勢強度約每 {years} 年減半",
-    scenarios: "情境", mapScenario: "地圖情境", year: "年份", play: "播放", stop: "停止",
+    scenarios: "情境", mapScenario: "情境", year: "年份", play: "播放", stop: "停止",
     allTaiwan: "全台", national: "全國", townships: "各鄉鎮區", download: "下載 CSV", reset: "重設地圖",
     zoomIn: "放大地圖", zoomOut: "縮小地圖", mapAria: "臺灣鄉鎮人口地圖", chartAria: "人口推估曲線圖",
     chartIntro: "曲線圖顯示 2025 年起的人口推估；點選某年資料點可同步右圖人口數地圖。",
@@ -26,6 +28,8 @@ export const messages = {
     methodSummary: " 採用方法：{method}。", fixedWeight: "固定權重", dampedWeight: "阻尼權重", peopleValue: "{value} 人",
   },
   en: {
+    zeroPopulation: "Population 0: white",
+    palette: "Color palette", purple: "Purple", rose: "Rose", apricot: "Apricot", countyTotal: "County total", mapNavigation: "Map navigation",
     scenarioComparison: "Scenario comparison", methodComparison: "Method comparison", scenario: "Scenario",
     mixed095: "Hybrid φ =0.95", mixed09: "Hybrid φ =0.9", mixed08: "Hybrid φ =0.8",
     title: "Taiwan Township Population Projections",
@@ -35,7 +39,7 @@ export const messages = {
     population: "Population", populationShort: "Population", change: "Population change since 2025",
     sampleYears: "Sample period", years5: "5 years", years10: "10 years", years18: "18 years",
     sampleWindow: "{years}-year sample {period}", damping: "Damping factor φ", halfLife: "Raw trend strength halves about every {years} years",
-    scenarios: "Scenarios", mapScenario: "Map scenario", year: "Year", play: "Play", stop: "Stop",
+    scenarios: "Scenarios", mapScenario: "Scenario", year: "Year", play: "Play", stop: "Stop",
     allTaiwan: "Taiwan total", national: "Taiwan", townships: "Townships", download: "Download CSV", reset: "Reset map",
     zoomIn: "Zoom in", zoomOut: "Zoom out", mapAria: "Taiwan township population map", chartAria: "Population projection chart",
     chartIntro: "Projections start in 2025. Select a chart point to show that year on the map.",

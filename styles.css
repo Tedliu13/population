@@ -98,8 +98,7 @@ html[lang="en"] .town-label {
   min-height: 3.2em;
 }
 
-.actions,
-.map-tools {
+.actions {
   display: flex;
   gap: 8px;
 }
@@ -139,11 +138,16 @@ button:disabled {
   gap: 4px;
 }
 
-.controls .scenario-group {
-  grid-column: 1 / -1;
+.scenario-group {
   display: grid;
   gap: 4px;
+  margin-top: 12px;
+  flex: 0 0 auto;
 }
+
+.scenario-group[hidden] { display: none; }
+#scenarioGroupLabel,
+#methodGroupLabel { color: var(--muted); }
 
 .damping-row {
   grid-column: 1 / -1;
@@ -298,14 +302,25 @@ button:disabled {
 }
 
 .map-toolbar-row {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 6;
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-top: 8px;
+  gap: 8px;
+  margin: 0;
   flex-wrap: wrap;
 }
 
+.map-title-row { display: flex; align-items: center; gap: 16px; }
+.map-title-row h2 { flex: 0 1 auto; min-width: 0; font-size: clamp(18px, 1.4vw, 24px); }
+.map-toolbar-row > * { background: #ffffffed; border-radius: 12px; padding: 3px 6px; }
+.map-toolbar-row span { white-space: nowrap; }
+
 .map-scenario-row,
+.map-palette-row,
 .map-year-row {
   display: flex;
   align-items: center;
@@ -314,17 +329,20 @@ button:disabled {
 }
 
 .map-scenario-row select,
+.map-palette-row select,
 .map-year-row select {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px;
   background: #fff;
-  min-width: 180px;
+  min-width: 120px;
   color: var(--text);
 }
 
 .map-year-row {
-  flex: 1 1 420px;
+  flex: 1 1 280px;
+  min-width: 230px;
+  gap: 8px;
 }
 
 .play-years-btn {
@@ -334,8 +352,9 @@ button:disabled {
 }
 
 #yearRange {
-  flex: 1 1 240px;
-  min-width: 180px;
+  flex: 1 1 100px;
+  min-width: 50px;
+  width: 100%;
   accent-color: #b54c2f;
 }
 
@@ -347,9 +366,33 @@ button:disabled {
 }
 
 .legend {
-  min-width: 190px;
-  font-size: 13px;
+  width: 100%;
+  min-width: 0;
+  font-size: 10px;
+  padding: 0 2px 8px;
 }
+
+.legend-discrete-ramp {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  height: 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.legend-discrete-ramp span + span { border-left: 1px solid #ffffff90; }
+.legend-breaks { position: relative; height: 22px; margin-top: 6px; font-size: 8px; font-variant-numeric: tabular-nums; }
+.legend-breaks span { position: absolute; white-space: nowrap; transform: translateX(-50%); }
+.legend-breaks span:first-child { transform: none; }
+.legend-breaks span:last-child { transform: translateX(-100%); }
+.legend-breaks span:nth-child(even) { top: 10px; }
+.legend-zero { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.legend-zero span { width: 12px; height: 9px; border: 1px solid var(--line); background: #fff; }
+
+.map-navigation { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.map-navigation[hidden], .map-navigation button[hidden] { display: none; }
+.map-navigation button { padding: 8px 12px; border-radius: 10px; background: #fff; }
 
 .legend .swatch {
   width: 18px;
@@ -380,19 +423,7 @@ button:disabled {
   font-size: 12px;
 }
 
-.map-tools {
-  position: absolute;
-  right: 16px;
-  top: 148px;
-  z-index: 5;
-  align-items: center;
-}
-
-.map-tools #resetViewBtn {
-  border-radius: 12px;
-  padding: 8px 12px;
-  line-height: 1;
-}
+.map-toolbar-row button { white-space: nowrap; }
 
 .map-container,
 .chart-wrapper {
@@ -453,24 +484,6 @@ button:disabled {
   display: block;
 }
 
-.inset-frame {
-  fill: rgba(255, 253, 250, 0);
-  stroke: rgba(73, 62, 50, 0.62);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-  rx: 10;
-  ry: 10;
-}
-
-.inset-title {
-  font-size: 18px;
-  font-weight: 700;
-  fill: rgba(38, 31, 25, 0.88);
-  text-anchor: middle;
-  pointer-events: none;
-}
-
 .tooltip {
   position: absolute;
   z-index: 10;
@@ -502,6 +515,9 @@ button:disabled {
 
 .map-panel .panel-header {
   margin-bottom: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
 }
 
 .map-panel {
@@ -559,11 +575,17 @@ html[lang="en"] .chart-panel .chart-header h2 {
   }
 
   .map-container {
-    min-height: 680px;
+    min-height: 420px;
+    height: clamp(420px, calc((100vw - 60px) * 0.6061), 760px);
   }
 }
 
 @media (max-width: 720px) {
+  .map-title-row { flex-wrap: wrap; gap: 8px; }
+  .map-year-row { flex-basis: 100%; }
+  .map-toolbar-row { gap: 4px; }
+  .map-toolbar-row > * { padding: 2px; gap: 4px; font-size: 12px; }
+  .map-toolbar-row select { min-width: 0; padding: 6px; max-width: 140px; }
   .app-shell {
     padding: 14px;
   }

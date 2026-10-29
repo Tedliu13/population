@@ -58,16 +58,12 @@
               <option value="18y_2008_2025" data-i18n="years18">18 年</option>
             </select>
           </label>
-          <div id="scenarioGroup" class="scenario-group" role="group" aria-labelledby="scenarioGroupLabel">
-            <span id="scenarioGroupLabel" data-i18n="scenarios">情境</span>
-            <div id="scenarioChecklist" class="scenario-checklist"></div>
-          </div>
         </section>
 
         <div class="panel-header chart-header">
           <div>
             <h2 id="chartTitle">全台</h2>
-            <p id="chartSubtitle">左圖顯示 2025 年起的人口推估曲線；點選某年資料點可同步右圖人口數地圖。</p>
+            <p id="chartSubtitle" hidden></p>
           </div>
           <div class="chart-actions">
             <button id="downloadCsvBtn" type="button" disabled data-i18n="download">下載 CSV</button>
@@ -76,39 +72,53 @@
         <div class="chart-wrapper">
           <svg id="chartSvg" class="chart-svg" aria-label="Population projection chart"></svg>
         </div>
-        <div id="townSummary" class="town-summary"></div>
+        <div id="townSummary" class="town-summary" hidden></div>
+        <div id="scenarioGroup" class="scenario-group" role="group" aria-labelledby="scenarioGroupLabel">
+          <span id="scenarioGroupLabel" data-i18n="scenarios">情境</span>
+          <div id="scenarioChecklist" class="scenario-checklist"></div>
+        </div>
+        <div id="methodGroup" class="scenario-group" role="group" aria-labelledby="methodGroupLabel" hidden>
+          <span id="methodGroupLabel" data-i18n="trendType">趨勢推估類型</span>
+          <div id="methodChecklist" class="scenario-checklist"></div>
+        </div>
       </section>
 
       <section class="map-panel">
         <div class="panel-header">
-          <div>
-            <h2 id="mapTitle">地圖</h2>
-            <div class="map-toolbar-row">
-              <div class="map-scenario-row">
-                <span data-i18n="mapScenario">地圖情境</span>
-                <select id="mapScenarioSelect"></select>
-              </div>
-              <div class="map-year-row">
-                <span data-i18n="year">年份</span>
-                <button id="playYearsBtn" type="button" class="play-years-btn">播放</button>
-                <input id="yearRange" type="range" min="0" max="0" step="1" value="0">
-                <span id="yearValue" class="year-value">2025</span>
-              </div>
+          <div class="map-title-row">
+            <h2 id="mapTitle">全台人口</h2>
+            <div class="map-year-row">
+              <span data-i18n="year">年份</span>
+              <button id="playYearsBtn" type="button" class="play-years-btn">播放</button>
+              <input id="yearRange" type="range" min="0" max="0" step="1" value="0">
+              <span id="yearValue" class="year-value">2025</span>
             </div>
           </div>
           <div id="legend" class="legend"></div>
         </div>
-        <div class="map-tools">
-          <button id="resetViewBtn" type="button" data-i18n="reset">重設地圖</button>
-          <button id="zoomInBtn" type="button">+</button>
-          <button id="zoomOutBtn" type="button">-</button>
-        </div>
         <div id="mapContainer" class="map-container">
+          <div class="map-toolbar-row">
+            <nav id="mapNavigation" class="map-navigation" hidden>
+              <button id="backToTaiwanBtn" type="button" data-i18n="allTaiwan">全台</button>
+              <button id="backToCountyBtn" type="button" hidden></button>
+            </nav>
+            <label class="map-palette-row">
+              <span data-i18n="palette">圖例顏色</span>
+              <select id="paletteSelect">
+                <option value="purpleMorandi" data-i18n="purple">紫色</option>
+                <option value="roseMorandi" data-i18n="rose">粉色</option>
+                <option value="apricotMorandi" data-i18n="apricot">橘色</option>
+              </select>
+            </label>
+            <div class="map-scenario-row">
+              <span data-i18n="mapScenario">情境</span>
+              <select id="mapScenarioSelect"></select>
+            </div>
+          </div>
           <svg id="mapSvg" class="map-svg" aria-label="Taiwan township map">
             <g id="mapViewport">
               <g id="townLayer"></g>
               <g id="countyLayer"></g>
-              <g id="insetLayer"></g>
               <g id="labelLayer"></g>
             </g>
           </svg>

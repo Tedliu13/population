@@ -1,13 +1,18 @@
 import { messages, townNames } from "./i18n.js";
+import { loadTopoGeometry, POPULATION_BREAKS, paletteColor, classColor } from "./topo-map.js";
 
 const state = {
   language: readLanguage(),
   comparisonMode: "scenario",
+  selectedMethods: ["mixed:0.95", "mixed:0.9", "mixed:0.8", "linear", "exponential"],
   comparisonScenario: "ipcc|SSP4",
   geometry: null,
   trends: null,
   projections: {},
   selectedCode: null,
+  selectedCountyCode: null,
+  palette: "purpleMorandi",
+  dragged: false,
   trendType: "mixed",
   dampingPhi: "0.9",
   mixedVariants: {},
@@ -24,12 +29,18 @@ const state = {
 };
 
 const els = {
+  paletteSelect: document.getElementById("paletteSelect"),
+  mapNavigation: document.getElementById("mapNavigation"),
+  backToTaiwanBtn: document.getElementById("backToTaiwanBtn"),
+  backToCountyBtn: document.getElementById("backToCountyBtn"),
   scenarioTab: document.getElementById("scenarioTab"),
   methodTab: document.getElementById("methodTab"),
   trendTypeField: document.getElementById("trendTypeField"),
   comparisonScenarioField: document.getElementById("comparisonScenarioField"),
   comparisonScenarioSelect: document.getElementById("comparisonScenarioSelect"),
   scenarioGroup: document.getElementById("scenarioGroup"),
+  methodGroup: document.getElementById("methodGroup"),
+  methodChecklist: document.getElementById("methodChecklist"),
   languageSelect: document.getElementById("languageSelect"),
   trendTypeSelect: document.getElementById("trendTypeSelect"),
   mapMetricSelect: document.getElementById("mapMetricSelect"),
@@ -47,15 +58,11 @@ const els = {
   mapSvg: document.getElementById("mapSvg"),
   mapViewport: document.getElementById("mapViewport"),
   countyLayer: document.getElementById("countyLayer"),
-  insetLayer: document.getElementById("insetLayer"),
   townLayer: document.getElementById("townLayer"),
   labelLayer: document.getElementById("labelLayer"),
   tooltip: document.getElementById("tooltip"),
   chartSvg: document.getElementById("chartSvg"),
   downloadCsvBtn: document.getElementById("downloadCsvBtn"),
-  zoomInBtn: document.getElementById("zoomInBtn"),
-  zoomOutBtn: document.getElementById("zoomOutBtn"),
-  resetViewBtn: document.getElementById("resetViewBtn"),
   mapContainer: document.getElementById("mapContainer"),
 };
 
@@ -67,7 +74,6 @@ const projectionCodeIndex = {
 };
 const townNodes = new Map();
 const labelNodes = new Map();
-const insetTitleNodes = new Map();
 const DEFAULT_SCENARIOS = [
   "ipcc|SSP1",
   "ipcc|SSP2",
@@ -79,6 +85,13 @@ const DEFAULT_SCENARIOS = [
   "taiwan|高推估",
 ];
 const SCENARIO_COLORS = ["#9d2e22", "#1f5bff", "#2f8f4e", "#a25ddc", "#d68b1f", "#006d77", "#bb3e03", "#6a4c93"];
+const COMPARISON_METHODS = [
+  { id: "mixed:0.95", model: "mixed", phi: "0.95", labelKey: "mixed095" },
+  { id: "mixed:0.9", model: "mixed", phi: "0.9", labelKey: "mixed09" },
+  { id: "mixed:0.8", model: "mixed", phi: "0.8", labelKey: "mixed08" },
+  { id: "linear", model: "linear", labelKey: "linear" },
+  { id: "exponential", model: "exponential", labelKey: "exponential" },
+];
 
 function readLanguage() {
   try { return localStorage.getItem("population-language") === "en" ? "en" : "zh"; }
@@ -99,6 +112,29 @@ function getTownLabel(town) {
   return state.language === "en" ? `${names.town}, ${names.county}` : `${names.county} ${names.town}`;
 }
 
+function getCountyLabel(code) {
+  const town = state.geometry.towns.find(item => item.code.startsWith(code));
+  return town ? townNames(town, state.language).county : code;
+}
+
+function fitBounds(bounds, padding = 0.82) {
+  const { width, height } = state.geometry.viewBox;
+  const scale = Math.min(160, padding * Math.min(width / Math.max(bounds.width, 1), height / Math.max(bounds.height, 1)));
+  state.transform = { scale, tx: width / 2 - (bounds.x + bounds.width / 2) * scale, ty: height / 2 - (bounds.y + bounds.height / 2) * scale };
+  applyTransform();
+}
+
+function focusMap(countyCode, townCode = null) {
+  state.selectedCountyCode = countyCode;
+  state.selectedCode = townCode;
+  hideTooltip();
+  const scope = townCode ? state.geometry.towns.find(item => item.code === townCode)
+    : state.geometry.counties.find(item => item.code === countyCode);
+  if (scope) fitBounds(scope.bounds);
+  else resetTransform();
+  updateAll();
+}
+
 function getWindowLabel() {
   const [years, period] = state.sampleWindow.split("y_");
   return t("sampleWindow", { years, period: state.language === "en" ? period.replace("_", "–") : period });
@@ -112,10 +148,9 @@ function applyStaticTranslations() {
   els.languageSelect.setAttribute("aria-label", t("language"));
   els.mapSvg.setAttribute("aria-label", t("mapAria"));
   els.chartSvg.setAttribute("aria-label", t("chartAria"));
-  els.zoomInBtn.setAttribute("aria-label", t("zoomIn"));
-  els.zoomOutBtn.setAttribute("aria-label", t("zoomOut"));
   els.yearRange.setAttribute("aria-label", t("year"));
   els.mapScenarioSelect.setAttribute("aria-label", t("mapScenario"));
+  els.mapNavigation.setAttribute("aria-label", t("mapNavigation"));
   els.playYearsBtn.textContent = t(state.playTimer ? "stop" : "play");
 }
 
@@ -129,7 +164,6 @@ function setLanguage(language) {
     const label = labelNodes.get(town.code);
     if (label) label.textContent = townNames(town, state.language).town;
   });
-  insetTitleNodes.forEach((node, key) => { node.textContent = t(key); });
   updateAll();
   if (state.hoverCode) els.tooltip.innerHTML = getTooltipContent(state.hoverCode);
 }
@@ -192,7 +226,7 @@ async function loadJson(url) {
 async function init() {
   applyStaticTranslations();
   const [geometry, trends, linear, exponential, mixed, mixed08, mixed095] = await Promise.all([
-    loadJson("./data/geometry.json"),
+    loadJson("./data/town_metadata.json"),
     loadJson("./data/trends.json"),
     loadJson("./data/projections_linear.json"),
     loadJson("./data/projections_exponential.json"),
@@ -201,7 +235,7 @@ async function init() {
     loadJson("./data/projections_mixed_phi_0p95.json"),
   ]);
 
-  state.geometry = geometry;
+  state.geometry = await loadTopoGeometry(loadJson, geometry);
   state.trends = trends;
   state.projections.linear = linear;
   state.projections.exponential = exponential;
@@ -209,7 +243,7 @@ async function init() {
   state.mixedVariants = { "0.8": mixed08, "0.9": mixed, "0.95": mixed095 };
   setDampingPhi(state.dampingPhi);
 
-  geometry.towns.forEach((town, idx) => {
+  state.geometry.towns.forEach((town, idx) => {
     geometryTownIndex.set(town.code, idx);
   });
   linear.codes.forEach((code, idx) => projectionCodeIndex.linear.set(code, idx));
@@ -221,6 +255,9 @@ async function init() {
   buildChartSkeleton();
   resetTransform();
   updateAll();
+  new ResizeObserver(resizeMapView).observe(els.mapContainer);
+  resizeMapView();
+  toggleYearPlayback();
 }
 
 function configureBaseState() {
@@ -236,19 +273,23 @@ function configureBaseState() {
 }
 
 function setupControls() {
+  els.paletteSelect.addEventListener("change", () => {
+    state.palette = els.paletteSelect.value;
+    updateAll();
+  });
+  els.backToTaiwanBtn.addEventListener("click", () => focusMap(null));
+  els.backToCountyBtn.addEventListener("click", () => focusMap(state.selectedCountyCode));
   els.scenarioTab.addEventListener("click", () => setComparisonMode("scenario"));
   els.methodTab.addEventListener("click", () => setComparisonMode("method"));
   els.comparisonScenarioSelect.addEventListener("change", () => {
     state.comparisonScenario = els.comparisonScenarioSelect.value;
     state.mapScenarioKey = state.comparisonScenario;
-    stopYearPlayback();
     syncScenarioOptions();
     syncYearOptions();
     updateAll();
   });
   els.languageSelect.addEventListener("change", () => setLanguage(els.languageSelect.value));
   els.trendTypeSelect.addEventListener("change", () => {
-    stopYearPlayback();
     const [trendType, phi] = els.trendTypeSelect.value.split(":");
     if (trendType === "mixed") setDampingPhi(phi);
     state.trendType = trendType;
@@ -257,21 +298,24 @@ function setupControls() {
     updateAll();
   });
   els.mapMetricSelect.addEventListener("change", () => {
-    stopYearPlayback();
+    const useLastYear = els.mapMetricSelect.value === "changeFrom2025" && state.mapMetric !== "changeFrom2025";
     state.mapMetric = els.mapMetricSelect.value;
-    syncYearOptions();
+    syncYearOptions({ useLastYear });
     updateAll();
   });
   els.sampleWindowSelect.addEventListener("change", () => {
-    stopYearPlayback();
     state.sampleWindow = els.sampleWindowSelect.value;
     syncScenarioOptions();
     syncYearOptions();
     updateAll();
   });
   els.mapScenarioSelect.addEventListener("change", () => {
-    stopYearPlayback();
     state.mapScenarioKey = els.mapScenarioSelect.value;
+    state.comparisonScenario = state.mapScenarioKey;
+    if (state.comparisonMode === "scenario") {
+      state.selectedScenarios = [state.mapScenarioKey, ...state.selectedScenarios.filter(key => key !== state.mapScenarioKey)];
+    }
+    syncScenarioOptions();
     syncYearOptions();
     updateAll();
   });
@@ -285,15 +329,6 @@ function setupControls() {
   });
   els.playYearsBtn.addEventListener("click", toggleYearPlayback);
   els.downloadCsvBtn.addEventListener("click", downloadCurrentTownCsv);
-  els.zoomInBtn.addEventListener("click", () => {
-    const pointer = state.lastPointer;
-    zoomBy(1.25, pointer?.x, pointer?.y);
-  });
-  els.zoomOutBtn.addEventListener("click", () => {
-    const pointer = state.lastPointer;
-    zoomBy(0.8, pointer?.x, pointer?.y);
-  });
-  els.resetViewBtn.addEventListener("click", resetTransform);
   syncYearOptions();
   setupPanZoom();
 }
@@ -303,7 +338,6 @@ function getProjectionConfig() {
 }
 
 function setComparisonMode(mode) {
-  stopYearPlayback();
   state.comparisonMode = mode;
   if (mode === "method") {
     state.comparisonScenario = getMapScenarioKey();
@@ -343,7 +377,36 @@ function getProjectionIndex(code) {
   return projectionCodeIndex[state.trendType].get(code);
 }
 
+function syncMethodChecklist() {
+  els.methodChecklist.innerHTML = "";
+  COMPARISON_METHODS.forEach(method => {
+    const label = document.createElement("label");
+    label.className = "scenario-check";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = method.id;
+    input.checked = state.selectedMethods.includes(method.id);
+    input.addEventListener("change", () => {
+      if (!input.checked && state.selectedMethods.length === 1 && state.selectedMethods.includes(method.id)) {
+        input.checked = true;
+        return;
+      }
+      const selected = new Set(state.selectedMethods);
+      if (input.checked) selected.add(method.id);
+      else selected.delete(method.id);
+      state.selectedMethods = COMPARISON_METHODS.filter(item => selected.has(item.id)).map(item => item.id);
+      updateChart();
+    });
+    const text = document.createElement("span");
+    text.textContent = t(method.labelKey);
+    label.appendChild(input);
+    label.appendChild(text);
+    els.methodChecklist.appendChild(label);
+  });
+}
+
 function syncScenarioOptions() {
+  syncMethodChecklist();
   const items = listAvailableScenarios();
   els.comparisonScenarioSelect.innerHTML = "";
   items.forEach(item => {
@@ -409,13 +472,13 @@ function syncMapScenarioSelect(items = listAvailableScenarios()) {
   });
 }
 
-function syncYearOptions() {
+function syncYearOptions({ useLastYear = false } = {}) {
   const years = getScenarioDataByKey(getMapScenarioKey()).years;
   state.availableYears = years.map(Number);
-  if (state.mapMetric === "changeFrom2025") {
+  if (useLastYear) {
     state.year = years[years.length - 1];
   } else if (!years.includes(state.year)) {
-    state.year = years[0];
+    state.year = years.reduce((nearest, year) => Math.abs(Number(year) - Number(state.year)) < Math.abs(Number(nearest) - Number(state.year)) ? year : nearest, years[0]);
   }
   els.yearRange.min = "0";
   els.yearRange.max = String(Math.max(0, years.length - 1));
@@ -458,7 +521,6 @@ function toggleYearPlayback() {
 
 function buildMap() {
   buildCounties();
-  buildInsets();
   const fragPaths = document.createDocumentFragment();
   const fragLabels = document.createDocumentFragment();
 
@@ -470,10 +532,12 @@ function buildMap() {
     path.addEventListener("mouseenter", (event) => showTooltip(event, town.code));
     path.addEventListener("mousemove", moveTooltip);
     path.addEventListener("mouseleave", hideTooltip);
-    path.addEventListener("click", () => {
-      state.selectedCode = state.selectedCode === town.code ? null : town.code;
-      updateMap();
-      updateChart();
+    path.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (state.dragged) return;
+      if (state.selectedCountyCode !== town.code.slice(0, 5)) focusMap(town.code.slice(0, 5));
+      else if (state.selectedCode === town.code) focusMap(state.selectedCountyCode);
+      else focusMap(town.code.slice(0, 5), town.code);
     });
     fragPaths.appendChild(path);
     townNodes.set(town.code, path);
@@ -500,37 +564,10 @@ function buildCounties() {
     path.setAttribute("d", county.path);
     path.setAttribute("class", "county-path");
     path.dataset.county = county.county;
+    path.dataset.code = county.code;
     frag.appendChild(path);
   });
   els.countyLayer.appendChild(frag);
-}
-
-function buildInsets() {
-  const frag = document.createDocumentFragment();
-  const insetDefs = [
-    { key: "matsu" },
-    { key: "kinmen" },
-  ];
-  insetDefs.forEach(({ key }) => {
-    const region = state.geometry.regions[key];
-    if (!region) return;
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x", region.x);
-    rect.setAttribute("y", region.y);
-    rect.setAttribute("width", region.width);
-    rect.setAttribute("height", region.height);
-    rect.setAttribute("class", "inset-frame");
-    frag.appendChild(rect);
-
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", region.x + region.width / 2);
-    text.setAttribute("y", region.y - 10);
-    text.setAttribute("class", "inset-title");
-    text.textContent = t(key);
-    insetTitleNodes.set(key, text);
-    frag.appendChild(text);
-  });
-  els.insetLayer.appendChild(frag);
 }
 
 function setupPanZoom() {
@@ -545,7 +582,7 @@ function setupPanZoom() {
     state.lastPointer = { x: event.clientX, y: event.clientY };
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
     zoomBy(factor, event.clientX, event.clientY);
-  });
+  }, { passive: false });
 
   els.mapSvg.addEventListener("mousemove", (event) => {
     state.lastPointer = { x: event.clientX, y: event.clientY };
@@ -553,25 +590,28 @@ function setupPanZoom() {
 
   els.mapSvg.addEventListener("click", (event) => {
     if (event.target === els.mapSvg || event.target === els.mapViewport || event.target === els.townLayer || event.target === els.countyLayer || event.target === els.labelLayer) {
-      state.selectedCode = null;
-      updateMap();
-      updateChart();
+      if (state.dragged) return;
+      focusMap(state.selectedCode ? state.selectedCountyCode : null);
     }
   });
 
   els.mapSvg.addEventListener("mousedown", (event) => {
     dragging = true;
+    state.dragged = false;
     els.mapSvg.classList.add("dragging");
-    startX = event.clientX;
-    startY = event.clientY;
+    const start = mapPoint(event.clientX, event.clientY);
+    startX = start.x;
+    startY = start.y;
     startTx = state.transform.tx;
     startTy = state.transform.ty;
   });
 
   window.addEventListener("mousemove", (event) => {
     if (!dragging) return;
-    state.transform.tx = startTx + (event.clientX - startX);
-    state.transform.ty = startTy + (event.clientY - startY);
+    const point = mapPoint(event.clientX, event.clientY);
+    if (Math.hypot(point.x - startX, point.y - startY) > 3) state.dragged = true;
+    state.transform.tx = startTx + (point.x - startX);
+    state.transform.ty = startTy + (point.y - startY);
     applyTransform();
   });
 
@@ -581,13 +621,16 @@ function setupPanZoom() {
   });
 }
 
-function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = els.mapContainer.clientHeight / 2) {
+function mapPoint(clientX, clientY) {
+  return new DOMPoint(clientX, clientY).matrixTransform(els.mapSvg.getScreenCTM().inverse());
+}
+
+function zoomBy(factor, clientX, clientY) {
   const oldScale = state.transform.scale;
-  const minScale = 0.55;
-  const newScale = Math.max(minScale, Math.min(12, oldScale * factor));
+  const minScale = 0.15;
+  const newScale = Math.max(minScale, Math.min(160, oldScale * factor));
   const svgRect = els.mapSvg.getBoundingClientRect();
-  const px = clientX - svgRect.left;
-  const py = clientY - svgRect.top;
+  const { x: px, y: py } = mapPoint(clientX ?? svgRect.left + svgRect.width / 2, clientY ?? svgRect.top + svgRect.height / 2);
   state.transform.tx = px - ((px - state.transform.tx) * newScale) / oldScale;
   state.transform.ty = py - ((py - state.transform.ty) * newScale) / oldScale;
   state.transform.scale = newScale;
@@ -595,16 +638,27 @@ function zoomBy(factor, clientX = els.mapContainer.clientWidth / 2, clientY = el
 }
 
 function resetTransform() {
-  state.transform = { scale: 1, tx: 0, ty: 0 };
-  applyTransform();
+  fitBounds(state.geometry.defaultBounds, 0.94);
+}
+
+function resizeMapView() {
+  const width = els.mapContainer.clientWidth, height = els.mapContainer.clientHeight;
+  if (!width || !height) return;
+  state.geometry.viewBox = { width, height };
+  els.mapSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const scope = state.selectedCode ? state.geometry.towns.find(town => town.code === state.selectedCode)
+    : state.geometry.counties.find(county => county.code === state.selectedCountyCode);
+  if (scope) fitBounds(scope.bounds);
+  else resetTransform();
 }
 
 function applyTransform() {
   const { scale, tx, ty } = state.transform;
   els.mapViewport.setAttribute("transform", `translate(${tx} ${ty}) scale(${scale})`);
   const showLabels = scale >= 2.25;
-  labelNodes.forEach((node) => {
-    node.classList.toggle("visible", showLabels);
+  labelNodes.forEach((node, code) => {
+    const inScope = !state.selectedCountyCode || code?.startsWith(state.selectedCountyCode);
+    node.classList.toggle("visible", inScope && (state.selectedCode ? code === state.selectedCode : showLabels));
     const x = Number(node.dataset.x || 0);
     const y = Number(node.dataset.y || 0);
     node.setAttribute("transform", `translate(${x} ${y}) scale(${1 / scale}) translate(${-x} ${-y})`);
@@ -619,11 +673,12 @@ function updateAll() {
   const methodComparison = state.comparisonMode === "method";
   els.trendTypeField.hidden = methodComparison;
   els.scenarioGroup.hidden = methodComparison;
+  els.methodGroup.hidden = !methodComparison;
   els.comparisonScenarioField.hidden = !methodComparison;
   els.scenarioTab.setAttribute("aria-selected", String(!methodComparison));
   els.methodTab.setAttribute("aria-selected", String(methodComparison));
   els.mapMetricSelect.querySelector('option[value="shareTrend"]').textContent = getShareTrendLabel();
-  if (state.mapMetric === "shareTrend") {
+  if (state.mapMetric === "shareTrend" || state.availableYears.length <= 1) {
     stopYearPlayback();
   }
   syncYearDisplay();
@@ -633,31 +688,25 @@ function updateAll() {
 }
 
 function updateLegend() {
-  if (state.mapMetric === "shareTrend") {
-    const min = state.trends.sharedRange.min;
-    const max = state.trends.sharedRange.max;
-    els.legend.innerHTML = `
-      <div class="legend-item"><div class="swatch" style="background:#1f5bff"></div><span>${t("decreaseTrend")} ${min.toFixed(6)}</span></div>
-      <div class="legend-item"><div class="swatch" style="background:#f7f6f2"></div><span>${t("nearZero")}</span></div>
-      <div class="legend-item"><div class="swatch" style="background:#c9372c"></div><span>${t("increaseTrend")} ${max.toFixed(6)}</span></div>
-    `;
-  } else if (state.mapMetric === "population") {
-    const range = getPopulationRangeForCurrentScenario();
-    els.legend.innerHTML = `
-      <div class="legend-ramp" style="background:linear-gradient(90deg, #ffffff 0%, #bffcff 12%, #31a8ff 28%, #0057d8 42%, #fff200 58%, #ff9f0a 74%, #ff3b30 88%, #8f00ff 100%)"></div>
-      <div class="legend-range">
-        <span>${t("lowerPopulation")} ${formatNumber(range.min)}</span>
-        <span>${t("higherPopulation")} ${formatNumber(range.max)}</span>
-      </div>
-    `;
+  const { breaks, colors } = getMapColorScale();
+  const format = value => state.mapMetric === "shareTrend" ? value.toExponential(1) : formatNumber(value);
+  els.legend.innerHTML = `<div class="legend-discrete-ramp">${colors.map(color => `<span style="background:${color}"></span>`).join("")}</div>
+    <div class="legend-breaks">${breaks.map((value, i) => `<span style="left:${i / (breaks.length - 1) * 100}%">${format(value)}</span>`).join("")}</div>
+    ${state.mapMetric === "population" ? `<div class="legend-zero"><span></span>${t("zeroPopulation")}</div>` : ""}`;
+}
+
+function getMapColorScale() {
+  const breaks = [...POPULATION_BREAKS];
+  if (state.mapMetric === "population") {
+    breaks[breaks.length - 1] = Math.max(600000, Math.ceil(getPopulationRangeForCurrentScenario().max / 100000) * 100000);
   } else {
-    const maxChange = getGlobalPopulationChangeAbsMax();
-    els.legend.innerHTML = `
-      <div class="legend-item"><div class="swatch" style="background:#1f5bff"></div><span>${t("decrease")} ${formatNumber(-maxChange)}</span></div>
-      <div class="legend-item"><div class="swatch" style="background:#f7f6f2"></div><span>${t("nearZero")}</span></div>
-      <div class="legend-item"><div class="swatch" style="background:#c9372c"></div><span>${t("increase")} ${formatNumber(maxChange)}</span></div>
-    `;
+    const max = state.mapMetric === "shareTrend"
+      ? Math.max(Math.abs(state.trends.sharedRange.min), Math.abs(state.trends.sharedRange.max))
+      : getGlobalPopulationChangeAbsMax();
+    for (let i = 0; i < breaks.length; i++) breaks[i] = -max + 2 * max * i / (breaks.length - 1);
   }
+  const colors = breaks.slice(1).map((_, i) => paletteColor(state.palette, i / (breaks.length - 2)));
+  return { breaks, colors };
 }
 
 function getCurrentPopulationMap() {
@@ -685,23 +734,19 @@ function getPopulationRangeForCurrentScenario() {
 }
 
 function updateMap() {
-  const trendLabel = getTrendLabel();
-  const windowLabel = getWindowLabel();
-  let metricLabel = getShareTrendLabel();
-  if (state.mapMetric === "population") {
-    metricLabel = `${state.year} ${t("population")}`;
-  } else if (state.mapMetric === "changeFrom2025") {
-    metricLabel = `${state.year} ${t("change")}`;
-  }
-  els.mapTitle.textContent = `${t("townships")} ${metricLabel}｜${getPrimaryScenarioLabel()}｜${windowLabel}｜${trendLabel}`;
+  const scopeLabel = state.selectedCode ? getTownLabel(state.geometry.towns.find(town => town.code === state.selectedCode))
+    : state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : t(state.language === "en" ? "national" : "allTaiwan");
+  els.mapTitle.textContent = state.language === "en" ? `${scopeLabel} ${t("populationShort")}` : `${scopeLabel}人口`;
+  els.mapNavigation.hidden = !state.selectedCountyCode;
+  els.backToCountyBtn.hidden = !state.selectedCode;
+  els.backToCountyBtn.textContent = state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : "";
 
   const trendValues = state.trends.values[state.trendType][state.sampleWindow];
   const populationValues = state.mapMetric === "population" ? getCurrentPopulationMap() : null;
   const changeValues = state.mapMetric === "changeFrom2025"
     ? getCurrentPopulationMap().map((value, idx) => value - getScenarioDataByKey(getMapScenarioKey()).populations["2025"][idx])
     : null;
-  const popRange = getPopulationRangeForCurrentScenario();
-  const maxChange = getGlobalPopulationChangeAbsMax();
+  const { breaks, colors } = getMapColorScale();
 
   state.geometry.towns.forEach((town) => {
     const node = townNodes.get(town.code);
@@ -709,15 +754,23 @@ function updateMap() {
     let fill = "#efebe3";
     if (state.mapMetric === "shareTrend") {
       const value = trendValues[town.code] ?? 0;
-      fill = interpolateDiverging(value, state.trends.sharedRange.min, state.trends.sharedRange.max);
+      fill = classColor(value, breaks, colors);
     } else if (changeValues && projectionIdx !== undefined) {
-      fill = interpolateDiverging(changeValues[projectionIdx], -maxChange, maxChange);
+      fill = classColor(changeValues[projectionIdx], breaks, colors);
     } else if (populationValues && projectionIdx !== undefined) {
-      fill = interpolateSequential(populationValues[projectionIdx], popRange.min, popRange.max);
+      fill = populationValues[projectionIdx] === 0 ? "#ffffff" : classColor(populationValues[projectionIdx], breaks, colors);
     }
     node.setAttribute("fill", fill);
     node.classList.toggle("selected", town.code === state.selectedCode);
+    node.style.display = state.selectedCode ? (town.code === state.selectedCode ? "" : "none")
+      : state.selectedCountyCode && !town.code.startsWith(state.selectedCountyCode) ? "none" : "";
   });
+  els.countyLayer.querySelectorAll(".county-path").forEach(node => {
+    node.style.display = state.selectedCode || (state.selectedCountyCode && node.dataset.code !== state.selectedCountyCode) ? "none" : "";
+  });
+  if (state.hoverCode) {
+    els.tooltip.innerHTML = getTooltipContent(state.hoverCode);
+  }
 }
 
 function getGlobalPopulationChangeAbsMax() {
@@ -742,15 +795,10 @@ function getGlobalPopulationChangeAbsMax() {
 function buildChartSeries() {
   const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
   const entries = state.comparisonMode === "method"
-    ? [
-      { model: "mixed", phi: "0.95" },
-      { model: "mixed", phi: "0.9" },
-      { model: "mixed", phi: "0.8" },
-      { model: "linear" },
-      { model: "exponential" },
-    ].map(method => ({ ...method, key: state.comparisonScenario }))
+    ? COMPARISON_METHODS.filter(method => state.selectedMethods.includes(method.id))
+      .map(method => ({ ...method, key: state.comparisonScenario }))
     : state.selectedScenarios.map(key => ({ key, model: state.trendType, phi: state.dampingPhi }));
-  return entries.map(({key, model, phi}, idx) => {
+  return entries.map(({key, model, phi, id}, idx) => {
     const { source, scenario } = parseScenarioKey(key);
     const projection = model === "mixed" ? state.mixedVariants[phi] : state.projections[model];
     const scenarioData = projection.sources[source].windows[state.sampleWindow].scenarios[scenario];
@@ -769,12 +817,19 @@ function buildChartSeries() {
           ? years.map((year) => scenarioData.populations[String(year)][projectionIdx] - baselinePopulation)
           : years.map((year) => scenarioData.populations[String(year)][projectionIdx]);
     } else {
+      const indices = state.selectedCountyCode
+        ? projection.codes.flatMap((code, index) => code.startsWith(state.selectedCountyCode) ? [index] : [])
+        : projection.codes.map((_, index) => index);
       const yearlyTotals = years.map((year) =>
-        scenarioData.populations[String(year)].reduce((sum, value) => sum + value, 0)
+        indices.reduce((sum, index) => sum + scenarioData.populations[String(year)][index], 0)
       );
+      if (state.selectedCountyCode) {
+        const trends = model === "mixed" ? state.trends.mixedByPhi[phi] : state.trends.values[model];
+        trendValue = indices.reduce((sum, index) => sum + (trends[state.sampleWindow][projection.codes[index]] ?? 0), 0);
+      }
       baselinePopulation = yearlyTotals[0];
       values = state.mapMetric === "shareTrend"
-        ? years.map(() => 1)
+        ? years.map(() => trendValue)
         : state.mapMetric === "changeFrom2025"
           ? yearlyTotals.map((value) => value - baselinePopulation)
           : yearlyTotals;
@@ -793,7 +848,7 @@ function buildChartSeries() {
       values,
       trendValue,
       baselinePopulation,
-      color: SCENARIO_COLORS[idx % SCENARIO_COLORS.length],
+      color: SCENARIO_COLORS[(state.comparisonMode === "method" ? COMPARISON_METHODS.findIndex(method => method.id === id) : DEFAULT_SCENARIOS.indexOf(key)) % SCENARIO_COLORS.length],
     };
   });
 }
@@ -810,7 +865,7 @@ function updateChart() {
   if (town) {
     els.chartTitle.textContent = getTownLabel(town);
   } else {
-    els.chartTitle.textContent = t("allTaiwan");
+    els.chartTitle.textContent = state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : t("allTaiwan");
   }
 
   els.chartSubtitle.textContent = state.comparisonMode === "method"
@@ -824,7 +879,7 @@ function updateChart() {
   const summaryValues = { scenario: state.comparisonMode === "method" ? `${getScenarioLabel(primarySeries.source, primarySeries.scenario)} / ${primarySeries.label}` : primarySeries.label, base: formatNumber(primarySeries.baselinePopulation),
     year: state.year, value: Number.isFinite(currentValue) ? formatNumber(currentValue) : "—",
     metric: getShareTrendLabel(), trend: primarySeries.trendValue.toFixed(8) };
-  const summaryKey = !town
+  const summaryKey = !town && !state.selectedCountyCode
     ? (state.mapMetric === "shareTrend" ? "totalShareSummary" : state.mapMetric === "changeFrom2025" ? "totalChangeSummary" : "totalPopulationSummary")
     : (state.mapMetric === "shareTrend" ? "shareSummary" : state.mapMetric === "changeFrom2025" ? "changeSummary" : "populationSummary");
   els.townSummary.textContent = t(summaryKey, summaryValues);
@@ -933,50 +988,6 @@ function renderChart(seriesList) {
   });
 }
 
-function interpolateSequential(value, min, max) {
-  const linearT = clamp((value - min) / (max - min || 1), 0, 1);
-  const t = Math.pow(linearT, 0.42);
-  return interpolateStops(
-    [
-      [255, 255, 255],
-      [191, 252, 255],
-      [49, 168, 255],
-      [0, 87, 216],
-      [255, 242, 0],
-      [255, 159, 10],
-      [255, 59, 48],
-      [143, 0, 255],
-    ],
-    t,
-  );
-}
-
-function interpolateDiverging(value, min, max) {
-  const absMax = Math.max(Math.abs(min), Math.abs(max));
-  if (value >= 0) {
-    return mixColor([248, 243, 238], [198, 49, 29], clamp(value / absMax, 0, 1));
-  }
-  return mixColor([248, 243, 238], [30, 84, 190], clamp(Math.abs(value) / absMax, 0, 1));
-}
-
-function mixColor(a, b, t) {
-  const c = a.map((channel, i) => Math.round(channel + (b[i] - channel) * t));
-  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-}
-
-function interpolateStops(stops, t) {
-  const clamped = clamp(t, 0, 1);
-  const segments = stops.length - 1;
-  const scaled = clamped * segments;
-  const idx = Math.min(segments - 1, Math.floor(scaled));
-  const localT = scaled - idx;
-  return mixColor(stops[idx], stops[idx + 1], localT);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function getTooltipContent(code) {
   const town = state.geometry.towns.find((item) => item.code === code);
   if (!town) return "";
@@ -1022,11 +1033,13 @@ function downloadCurrentTownCsv() {
   const seriesList = buildChartSeries();
 
   const csvRows = [];
-  const names = town ? townNames(town, state.language) : { county: t("national"), town: t("allTaiwan") };
+  const names = town ? townNames(town, state.language) : state.selectedCountyCode
+    ? { county: getCountyLabel(state.selectedCountyCode), town: t("countyTotal") }
+    : { county: t("national"), town: t("allTaiwan") };
   seriesList.forEach((series) => {
     series.years.forEach((year, idx) => {
       csvRows.push([
-        town?.code ?? "TOTAL",
+        town?.code ?? state.selectedCountyCode ?? "TOTAL",
         names.county,
         names.town,
         series.model,
@@ -1053,7 +1066,7 @@ function downloadCurrentTownCsv() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  const fileLabel = town ? `${names.county}_${names.town}` : t("allTaiwan");
+  const fileLabel = town || state.selectedCountyCode ? `${names.county}_${names.town}` : t("allTaiwan");
   const typeLabel = state.trendType === "mixed" ? `mixed_phi_${state.dampingPhi.replace(".", "p")}` : state.trendType;
   const comparisonLabel = state.comparisonMode === "method" ? `method_comparison_${state.comparisonScenario.replace("|", "_")}` : typeLabel;
   link.download = `${fileLabel}_${comparisonLabel}_${state.sampleWindow}.csv`;
