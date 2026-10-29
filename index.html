@@ -98,10 +98,6 @@
         </div>
         <div id="mapContainer" class="map-container">
           <div class="map-toolbar-row">
-            <nav id="mapNavigation" class="map-navigation" hidden>
-              <button id="backToTaiwanBtn" type="button" data-i18n="allTaiwan">全台</button>
-              <button id="backToCountyBtn" type="button" hidden></button>
-            </nav>
             <label class="map-palette-row">
               <span data-i18n="palette">圖例顏色</span>
               <select id="paletteSelect">
@@ -114,6 +110,10 @@
               <span data-i18n="mapScenario">情境</span>
               <select id="mapScenarioSelect"></select>
             </div>
+            <label class="map-label-toggle">
+              <input id="showTownNamesCheck" type="checkbox">
+              <span data-i18n="showTownNames">顯示鄉鎮區名稱</span>
+            </label>
           </div>
           <svg id="mapSvg" class="map-svg" aria-label="Taiwan township map">
             <g id="mapViewport">

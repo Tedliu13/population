@@ -318,6 +318,8 @@ button:disabled {
 .map-title-row h2 { flex: 0 1 auto; min-width: 0; font-size: clamp(18px, 1.4vw, 24px); }
 .map-toolbar-row > * { background: #ffffffed; border-radius: 12px; padding: 3px 6px; }
 .map-toolbar-row span { white-space: nowrap; }
+.map-label-toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.map-label-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 
 .map-scenario-row,
 .map-palette-row,
@@ -390,9 +392,6 @@ button:disabled {
 .legend-zero { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
 .legend-zero span { width: 12px; height: 9px; border: 1px solid var(--line); background: #fff; }
 
-.map-navigation { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.map-navigation[hidden], .map-navigation button[hidden] { display: none; }
-.map-navigation button { padding: 8px 12px; border-radius: 10px; background: #fff; }
 
 .legend .swatch {
   width: 18px;

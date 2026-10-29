@@ -1,5 +1,6 @@
 export const messages = {
   zh: {
+    showTownNames: "顯示鄉鎮區名稱",
     zeroPopulation: "人口 0：白色",
     palette: "圖例顏色", purple: "紫色", rose: "粉色", apricot: "橘色", countyTotal: "全縣市", mapNavigation: "地圖層級導覽",
     scenarioComparison: "情境比較", methodComparison: "推估方法比較", scenario: "情境",
@@ -28,6 +29,7 @@ export const messages = {
     methodSummary: " 採用方法：{method}。", fixedWeight: "固定權重", dampedWeight: "阻尼權重", peopleValue: "{value} 人",
   },
   en: {
+    showTownNames: "Show township names",
     zeroPopulation: "Population 0: white",
     palette: "Color palette", purple: "Purple", rose: "Rose", apricot: "Apricot", countyTotal: "County total", mapNavigation: "Map navigation",
     scenarioComparison: "Scenario comparison", methodComparison: "Method comparison", scenario: "Scenario",

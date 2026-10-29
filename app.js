@@ -12,6 +12,7 @@ const state = {
   selectedCode: null,
   selectedCountyCode: null,
   palette: "purpleMorandi",
+  showTownNames: false,
   dragged: false,
   trendType: "mixed",
   dampingPhi: "0.9",
@@ -30,9 +31,7 @@ const state = {
 
 const els = {
   paletteSelect: document.getElementById("paletteSelect"),
-  mapNavigation: document.getElementById("mapNavigation"),
-  backToTaiwanBtn: document.getElementById("backToTaiwanBtn"),
-  backToCountyBtn: document.getElementById("backToCountyBtn"),
+  showTownNamesCheck: document.getElementById("showTownNamesCheck"),
   scenarioTab: document.getElementById("scenarioTab"),
   methodTab: document.getElementById("methodTab"),
   trendTypeField: document.getElementById("trendTypeField"),
@@ -150,7 +149,6 @@ function applyStaticTranslations() {
   els.chartSvg.setAttribute("aria-label", t("chartAria"));
   els.yearRange.setAttribute("aria-label", t("year"));
   els.mapScenarioSelect.setAttribute("aria-label", t("mapScenario"));
-  els.mapNavigation.setAttribute("aria-label", t("mapNavigation"));
   els.playYearsBtn.textContent = t(state.playTimer ? "stop" : "play");
 }
 
@@ -273,12 +271,15 @@ function configureBaseState() {
 }
 
 function setupControls() {
+  els.showTownNamesCheck.checked = state.showTownNames;
+  els.showTownNamesCheck.addEventListener("change", () => {
+    state.showTownNames = els.showTownNamesCheck.checked;
+    applyTransform();
+  });
   els.paletteSelect.addEventListener("change", () => {
     state.palette = els.paletteSelect.value;
     updateAll();
   });
-  els.backToTaiwanBtn.addEventListener("click", () => focusMap(null));
-  els.backToCountyBtn.addEventListener("click", () => focusMap(state.selectedCountyCode));
   els.scenarioTab.addEventListener("click", () => setComparisonMode("scenario"));
   els.methodTab.addEventListener("click", () => setComparisonMode("method"));
   els.comparisonScenarioSelect.addEventListener("change", () => {
@@ -655,10 +656,9 @@ function resizeMapView() {
 function applyTransform() {
   const { scale, tx, ty } = state.transform;
   els.mapViewport.setAttribute("transform", `translate(${tx} ${ty}) scale(${scale})`);
-  const showLabels = scale >= 2.25;
   labelNodes.forEach((node, code) => {
     const inScope = !state.selectedCountyCode || code?.startsWith(state.selectedCountyCode);
-    node.classList.toggle("visible", inScope && (state.selectedCode ? code === state.selectedCode : showLabels));
+    node.classList.toggle("visible", state.showTownNames && inScope && (!state.selectedCode || code === state.selectedCode));
     const x = Number(node.dataset.x || 0);
     const y = Number(node.dataset.y || 0);
     node.setAttribute("transform", `translate(${x} ${y}) scale(${1 / scale}) translate(${-x} ${-y})`);
@@ -737,9 +737,6 @@ function updateMap() {
   const scopeLabel = state.selectedCode ? getTownLabel(state.geometry.towns.find(town => town.code === state.selectedCode))
     : state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : t(state.language === "en" ? "national" : "allTaiwan");
   els.mapTitle.textContent = state.language === "en" ? `${scopeLabel} ${t("populationShort")}` : `${scopeLabel}人口`;
-  els.mapNavigation.hidden = !state.selectedCountyCode;
-  els.backToCountyBtn.hidden = !state.selectedCode;
-  els.backToCountyBtn.textContent = state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : "";
 
   const trendValues = state.trends.values[state.trendType][state.sampleWindow];
   const populationValues = state.mapMetric === "population" ? getCurrentPopulationMap() : null;
