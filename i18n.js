@@ -1,5 +1,9 @@
 export const messages = {
   zh: {
+    history: "歷史趨勢", historicalPopulation: "歷史人口", observedPopulation: "實際人口", fittedTrend: "線性趨勢線",
+    historicalSlope: "{start}–{end} 年｜趨勢：{slope} 人／年｜R²：{rSquared}",
+    historicalMethod: "混合型（φ={phi}）採用方法：{method}。",
+    fixedShareMethod: "固定占比法", dampedShareMethod: "阻尼占比法", unavailableMethod: "尚無判定資料",
     showTownNames: "顯示鄉鎮區名稱",
     zeroPopulation: "人口 0：白色",
     palette: "圖例顏色", purple: "紫色", rose: "粉色", apricot: "橘色", countyTotal: "全縣市", mapNavigation: "地圖層級導覽",
@@ -29,6 +33,10 @@ export const messages = {
     methodSummary: " 採用方法：{method}。", fixedWeight: "固定權重", dampedWeight: "阻尼權重", peopleValue: "{value} 人",
   },
   en: {
+    history: "Historical trends", historicalPopulation: "Historical population", observedPopulation: "Observed population", fittedTrend: "Linear trend",
+    historicalSlope: "{start}–{end} | Trend: {slope} people/year | R²: {rSquared}",
+    historicalMethod: "Hybrid (φ={phi}) selected method: {method}.",
+    fixedShareMethod: "Constant share", dampedShareMethod: "Damped share", unavailableMethod: "No selection data available",
     showTownNames: "Show township names",
     zeroPopulation: "Population 0: white",
     palette: "Color palette", purple: "Purple", rose: "Rose", apricot: "Apricot", countyTotal: "County total", mapNavigation: "Map navigation",

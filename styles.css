@@ -275,10 +275,14 @@ button:disabled {
 }
 
 .comparison-tabs {
+  flex-wrap: wrap;
   display: flex;
   gap: 6px;
   margin: 8px 0;
 }
+
+.history-summary { margin-top: 10px; font-size: 14px; line-height: 1.5; min-height: 3em; white-space: pre-line; }
+.history-summary[hidden], .map-scenario-row[hidden] { display: none; }
 
 .comparison-tabs button {
   border-radius: 10px;

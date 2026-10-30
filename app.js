@@ -1,9 +1,12 @@
 import { messages, townNames } from "./i18n.js";
+import { fitPopulationTrend } from "./history.js";
 import { loadTopoGeometry, POPULATION_BREAKS, paletteColor, classColor } from "./topo-map.js";
 
 const state = {
   language: readLanguage(),
   comparisonMode: "scenario",
+  history: null,
+  projectionView: null,
   selectedMethods: ["mixed:0.95", "mixed:0.9", "mixed:0.8", "linear", "exponential"],
   comparisonScenario: "ipcc|SSP4",
   geometry: null,
@@ -34,6 +37,12 @@ const els = {
   showTownNamesCheck: document.getElementById("showTownNamesCheck"),
   scenarioTab: document.getElementById("scenarioTab"),
   methodTab: document.getElementById("methodTab"),
+  historyTab: document.getElementById("historyTab"),
+  historySummary: document.getElementById("historySummary"),
+  mapMetricField: document.getElementById("mapMetricField"),
+  mapScenarioField: document.getElementById("mapScenarioField"),
+  mapMethodField: document.getElementById("mapMethodField"),
+  mapMethodSelect: document.getElementById("mapMethodSelect"),
   trendTypeField: document.getElementById("trendTypeField"),
   comparisonScenarioField: document.getElementById("comparisonScenarioField"),
   comparisonScenarioSelect: document.getElementById("comparisonScenarioSelect"),
@@ -149,6 +158,7 @@ function applyStaticTranslations() {
   els.chartSvg.setAttribute("aria-label", t("chartAria"));
   els.yearRange.setAttribute("aria-label", t("year"));
   els.mapScenarioSelect.setAttribute("aria-label", t("mapScenario"));
+  els.mapMethodSelect.setAttribute("aria-label", t("trendType"));
   els.playYearsBtn.textContent = t(state.playTimer ? "stop" : "play");
 }
 
@@ -223,7 +233,7 @@ async function loadJson(url) {
 
 async function init() {
   applyStaticTranslations();
-  const [geometry, trends, linear, exponential, mixed, mixed08, mixed095] = await Promise.all([
+  const [geometry, trends, linear, exponential, mixed, mixed08, mixed095, history] = await Promise.all([
     loadJson("./data/town_metadata.json"),
     loadJson("./data/trends.json"),
     loadJson("./data/projections_linear.json"),
@@ -231,10 +241,14 @@ async function init() {
     loadJson("./data/projections_mixed.json"),
     loadJson("./data/projections_mixed_phi_0p8.json"),
     loadJson("./data/projections_mixed_phi_0p95.json"),
+    loadJson("./data/history.json"),
   ]);
 
   state.geometry = await loadTopoGeometry(loadJson, geometry);
   state.trends = trends;
+  state.history = history;
+  const historyCodes = new Set(history.codes);
+  if (state.geometry.towns.some(town => !historyCodes.has(town.code))) throw new Error("Missing historical township data");
   state.projections.linear = linear;
   state.projections.exponential = exponential;
   state.projections.mixed = mixed;
@@ -282,6 +296,7 @@ function setupControls() {
   });
   els.scenarioTab.addEventListener("click", () => setComparisonMode("scenario"));
   els.methodTab.addEventListener("click", () => setComparisonMode("method"));
+  els.historyTab.addEventListener("click", () => setComparisonMode("history"));
   els.comparisonScenarioSelect.addEventListener("change", () => {
     state.comparisonScenario = els.comparisonScenarioSelect.value;
     state.mapScenarioKey = state.comparisonScenario;
@@ -295,6 +310,13 @@ function setupControls() {
     if (trendType === "mixed") setDampingPhi(phi);
     state.trendType = trendType;
     syncScenarioOptions();
+    syncYearOptions();
+    updateAll();
+  });
+  els.mapMethodSelect.addEventListener("change", () => {
+    const [trendType, phi] = els.mapMethodSelect.value.split(":");
+    if (trendType === "mixed") setDampingPhi(phi);
+    state.trendType = trendType;
     syncYearOptions();
     updateAll();
   });
@@ -339,6 +361,15 @@ function getProjectionConfig() {
 }
 
 function setComparisonMode(mode) {
+  if (mode === "history" && state.comparisonMode !== "history") {
+    state.projectionView = { metric: state.mapMetric, year: state.year };
+    state.mapMetric = "population";
+    state.year = "2025";
+  } else if (mode !== "history" && state.comparisonMode === "history") {
+    state.mapMetric = state.projectionView.metric;
+    state.year = state.projectionView.year;
+  }
+  els.mapMetricSelect.value = state.mapMetric;
   state.comparisonMode = mode;
   if (mode === "method") {
     state.comparisonScenario = getMapScenarioKey();
@@ -375,6 +406,7 @@ function getPrimaryScenarioLabel() {
 }
 
 function getProjectionIndex(code) {
+  if (state.comparisonMode === "history") return state.history.codes.indexOf(code);
   return projectionCodeIndex[state.trendType].get(code);
 }
 
@@ -474,7 +506,7 @@ function syncMapScenarioSelect(items = listAvailableScenarios()) {
 }
 
 function syncYearOptions({ useLastYear = false } = {}) {
-  const years = getScenarioDataByKey(getMapScenarioKey()).years;
+  const years = state.comparisonMode === "history" ? getHistoricalYears() : getScenarioDataByKey(getMapScenarioKey()).years;
   state.availableYears = years.map(Number);
   if (useLastYear) {
     state.year = years[years.length - 1];
@@ -671,11 +703,20 @@ function buildChartSkeleton() {
 
 function updateAll() {
   const methodComparison = state.comparisonMode === "method";
-  els.trendTypeField.hidden = methodComparison;
-  els.scenarioGroup.hidden = methodComparison;
+  const historical = state.comparisonMode === "history";
+  els.historyTab.setAttribute("aria-selected", String(historical));
+  els.historySummary.hidden = !historical;
+  els.mapMetricField.hidden = historical;
+  els.mapScenarioField.hidden = historical || methodComparison;
+  els.mapMethodField.hidden = !methodComparison;
+  const methodValue = state.trendType === "mixed" ? `mixed:${state.dampingPhi}` : state.trendType;
+  els.mapMethodSelect.value = methodValue;
+  els.trendTypeSelect.value = methodValue;
+  els.trendTypeField.hidden = methodComparison || historical;
+  els.scenarioGroup.hidden = methodComparison || historical;
   els.methodGroup.hidden = !methodComparison;
   els.comparisonScenarioField.hidden = !methodComparison;
-  els.scenarioTab.setAttribute("aria-selected", String(!methodComparison));
+  els.scenarioTab.setAttribute("aria-selected", String(state.comparisonMode === "scenario"));
   els.methodTab.setAttribute("aria-selected", String(methodComparison));
   els.mapMetricSelect.querySelector('option[value="shareTrend"]').textContent = getShareTrendLabel();
   if (state.mapMetric === "shareTrend" || state.availableYears.length <= 1) {
@@ -710,12 +751,14 @@ function getMapColorScale() {
 }
 
 function getCurrentPopulationMap() {
+  if (state.comparisonMode === "history") return state.history.populations[state.year];
   const scenarioData = getScenarioDataByKey(getMapScenarioKey());
   return scenarioData.populations[state.year];
 }
 
 function getPopulationRangeForCurrentScenario() {
-  const scenarioData = getScenarioDataByKey(getMapScenarioKey());
+  const scenarioData = state.comparisonMode === "history"
+    ? { years: getHistoricalYears(), populations: state.history.populations } : getScenarioDataByKey(getMapScenarioKey());
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
 
@@ -737,6 +780,7 @@ function updateMap() {
   const scopeLabel = state.selectedCode ? getTownLabel(state.geometry.towns.find(town => town.code === state.selectedCode))
     : state.selectedCountyCode ? getCountyLabel(state.selectedCountyCode) : t(state.language === "en" ? "national" : "allTaiwan");
   els.mapTitle.textContent = state.language === "en" ? `${scopeLabel} ${t("populationShort")}` : `${scopeLabel}人口`;
+  if (state.comparisonMode === "history") els.mapTitle.textContent = `${scopeLabel} ${t("historicalPopulation")}`;
 
   const trendValues = state.trends.values[state.trendType][state.sampleWindow];
   const populationValues = state.mapMetric === "population" ? getCurrentPopulationMap() : null;
@@ -789,7 +833,43 @@ function getGlobalPopulationChangeAbsMax() {
   return absMax || 1;
 }
 
+function getHistoricalYears() {
+  const [, start, end] = state.sampleWindow.split("_");
+  return state.history.years.filter(year => Number(year) >= Number(start) && Number(year) <= Number(end));
+}
+
+function buildHistoricalSeries() {
+  const years = getHistoricalYears().map(Number);
+  const indices = state.history.codes.flatMap((code, index) =>
+    state.selectedCode ? (code === state.selectedCode ? [index] : [])
+      : !state.selectedCountyCode || code.startsWith(state.selectedCountyCode) ? [index] : []);
+  if (!indices.length) throw new Error("No historical observations for selected area");
+  const values = years.map(year => indices.reduce((sum, index) => sum + state.history.populations[year][index], 0));
+  return { years, values, ...fitPopulationTrend(years, values), label: t("observedPopulation"), color: "#006d77",
+    baselinePopulation: values[0], trendValue: 0 };
+}
+
+function downloadHistoryCsv() {
+  const series = buildHistoricalSeries();
+  const town = state.geometry.towns.find(item => item.code === state.selectedCode);
+  const label = town ? `${town.county}_${town.town}` : state.selectedCountyCode
+    ? state.geometry.towns.find(item => item.code.startsWith(state.selectedCountyCode)).county : "全台";
+  const rows = [["area_code", "area_name", "sample_window", "year", "population", "fitted_population", "slope_people_per_year", "r_squared"],
+    ...series.years.map((year, i) => [state.selectedCode || state.selectedCountyCode || "TOTAL", label, state.sampleWindow,
+      year, series.values[i], series.fitted[i], series.slope, series.rSquared ?? ""] )];
+  const blob = new Blob(["\ufeff" + rows.map(row => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${label}_history_${state.sampleWindow}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function buildChartSeries() {
+  if (state.comparisonMode === "history") return [buildHistoricalSeries()];
   const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
   const entries = state.comparisonMode === "method"
     ? COMPARISON_METHODS.filter(method => state.selectedMethods.includes(method.id))
@@ -871,6 +951,17 @@ function updateChart() {
   els.downloadCsvBtn.disabled = false;
 
   renderChart(seriesList);
+  if (state.comparisonMode === "history") {
+    const slope = primarySeries.slope.toLocaleString(state.language === "en" ? "en-US" : "zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "always" });
+    els.historySummary.textContent = t("historicalSlope", { start: primarySeries.years[0], end: primarySeries.years.at(-1), slope,
+      rSquared: primarySeries.rSquared === null ? "N/A" : primarySeries.rSquared.toFixed(4) });
+    if (town) {
+      const selectedMethod = state.mixedVariants[state.dampingPhi]?.selection?.[state.sampleWindow]?.[town.code];
+      const methodKey = { fixed_share: "fixedShareMethod", damped_log_share: "dampedShareMethod" }[selectedMethod] ?? "unavailableMethod";
+      els.historySummary.textContent += "\n" + t("historicalMethod", { phi: state.dampingPhi, method: t(methodKey) });
+    }
+    return;
+  }
 
   const currentValue = primarySeries.values[primarySeries.years.indexOf(Number(state.year))];
   const summaryValues = { scenario: state.comparisonMode === "method" ? `${getScenarioLabel(primarySeries.source, primarySeries.scenario)} / ${primarySeries.label}` : primarySeries.label, base: formatNumber(primarySeries.baselinePopulation),
@@ -899,7 +990,7 @@ function renderChart(seriesList) {
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
   const years = [...new Set(seriesList.flatMap((series) => series.years))].sort((a, b) => a - b);
-  const flatValues = seriesList.flatMap((series) => series.values);
+  const flatValues = seriesList.flatMap((series) => [...series.values, ...(series.fitted || [])]);
   const minY = Math.min(...flatValues);
   const maxY = Math.max(...flatValues);
   const yPad = Math.max((maxY - minY) * 0.1, 1);
@@ -934,8 +1025,8 @@ function renderChart(seriesList) {
   svgParts.push(`<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#6e6255"></line>`);
 
   seriesList.forEach((series, seriesIdx) => {
-    const polyline = series.years.map((year, i) => `${xScale(year)},${yScale(series.values[i])}`).join(" ");
-    svgParts.push(`<polyline fill="none" stroke="${series.color}" stroke-width="${seriesIdx === 0 ? 3.2 : 2.4}" points="${polyline}"></polyline>`);
+    const polyline = series.years.map((year, i) => `${xScale(year)},${yScale((series.fitted || series.values)[i])}`).join(" ");
+    svgParts.push(`<polyline class="${series.fitted ? "historical-trend" : "projection-line"}" fill="none" stroke="${series.fitted ? "#b54c2f" : series.color}" stroke-width="${seriesIdx === 0 ? 3.2 : 2.4}" points="${polyline}"></polyline>`);
     series.years.forEach((year, i) => {
       const x = xScale(year);
       const y = yScale(series.values[i]);
@@ -949,14 +1040,17 @@ function renderChart(seriesList) {
     });
   });
 
-  seriesList.forEach((series, idx) => {
+  const legendSeries = state.comparisonMode === "history"
+    ? [{ label: t("observedPopulation"), color: "#006d77", marker: true }, { label: t("fittedTrend"), color: "#b54c2f" }] : seriesList;
+  legendSeries.forEach((series, idx) => {
     const isIpcc = series.source === "ipcc";
     const groupIndex = isIpcc
       ? seriesList.filter((item, i) => i <= idx && item.source === "ipcc").length - 1
       : seriesList.filter((item, i) => i <= idx && item.source === "taiwan").length - 1;
-    const legendBaseX = state.comparisonMode === "method" ? width - margin.right - 180 : isIpcc ? width - margin.right - 250 : width - margin.right - 120;
-    const legendY = margin.top + 8 + (state.comparisonMode === "method" ? idx : groupIndex) * 20;
-    svgParts.push(`<line x1="${legendBaseX}" y1="${legendY}" x2="${legendBaseX + 24}" y2="${legendY}" stroke="${series.color}" stroke-width="3"></line>`);
+    const singleLegend = state.comparisonMode !== "scenario";
+    const legendBaseX = singleLegend ? width - margin.right - 180 : isIpcc ? width - margin.right - 250 : width - margin.right - 120;
+    const legendY = margin.top + 8 + (singleLegend ? idx : groupIndex) * 20;
+    svgParts.push(series.marker ? `<circle cx="${legendBaseX + 12}" cy="${legendY}" r="4.5" fill="white" stroke="${series.color}" stroke-width="2"/>` : `<line x1="${legendBaseX}" y1="${legendY}" x2="${legendBaseX + 24}" y2="${legendY}" stroke="${series.color}" stroke-width="3"></line>`);
     svgParts.push(`<text x="${legendBaseX + 32}" y="${legendY + 4}" fill="#6c6258" font-size="12">${series.label}</text>`);
   });
 
@@ -1026,6 +1120,7 @@ function hideTooltip() {
 }
 
 function downloadCurrentTownCsv() {
+  if (state.comparisonMode === "history") { downloadHistoryCsv(); return; }
   const town = state.geometry.towns.find((item) => item.code === state.selectedCode);
   const seriesList = buildChartSeries();
 

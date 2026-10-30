@@ -26,6 +26,7 @@
         <div class="comparison-tabs" role="tablist" aria-label="Comparison">
           <button id="scenarioTab" type="button" role="tab" aria-selected="true" data-i18n="scenarioComparison">情境比較</button>
           <button id="methodTab" type="button" role="tab" aria-selected="false" data-i18n="methodComparison">推估方法比較</button>
+          <button id="historyTab" type="button" role="tab" aria-selected="false" data-i18n="history">歷史趨勢</button>
         </div>
         <section class="controls side-controls">
           <label id="comparisonScenarioField" hidden>
@@ -42,7 +43,7 @@
               <option value="exponential" data-i18n="exponential">指數</option>
             </select>
           </label>
-          <label>
+          <label id="mapMetricField">
             <span data-i18n="mapMetric">地圖選擇</span>
             <select id="mapMetricSelect">
               <option value="shareTrend">平均人口占比變化量</option>
@@ -73,6 +74,7 @@
           <svg id="chartSvg" class="chart-svg" aria-label="Population projection chart"></svg>
         </div>
         <div id="townSummary" class="town-summary" hidden></div>
+        <div id="historySummary" class="history-summary" aria-live="polite" hidden></div>
         <div id="scenarioGroup" class="scenario-group" role="group" aria-labelledby="scenarioGroupLabel">
           <span id="scenarioGroupLabel" data-i18n="scenarios">情境</span>
           <div id="scenarioChecklist" class="scenario-checklist"></div>
@@ -106,10 +108,20 @@
                 <option value="apricotMorandi" data-i18n="apricot">橘色</option>
               </select>
             </label>
-            <div class="map-scenario-row">
+            <div id="mapScenarioField" class="map-scenario-row">
               <span data-i18n="mapScenario">情境</span>
               <select id="mapScenarioSelect"></select>
             </div>
+            <label id="mapMethodField" class="map-scenario-row" hidden>
+              <span data-i18n="trendType">趨勢推估類型</span>
+              <select id="mapMethodSelect">
+                <option value="mixed:0.95" data-i18n="mixed095">混合型 φ =0.95</option>
+                <option value="mixed:0.9" selected data-i18n="mixed09">混合型 φ =0.9</option>
+                <option value="mixed:0.8" data-i18n="mixed08">混合型 φ =0.8</option>
+                <option value="linear" data-i18n="linear">線性</option>
+                <option value="exponential" data-i18n="exponential">指數</option>
+              </select>
+            </label>
             <label class="map-label-toggle">
               <input id="showTownNamesCheck" type="checkbox">
               <span data-i18n="showTownNames">顯示鄉鎮區名稱</span>
